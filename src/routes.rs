@@ -14,10 +14,16 @@ use crate::models::{Post, CreatePost, UpdatePost, PostResponse,
 pub fn post_routes() -> Router<SqlitePool> {
     Router::new()
         .route("/posts", get(list_posts).post(create_post))
-        .route("/posts/:id", get(get_posts).delete(delete_post).put(update_post))
         .route("/comments", get(list_comments).post(create_comment))
         .route("/accounts", get(list_accounts).post(create_account))
 }
+
+
+pub fn post_routes_cache() -> Router<SqlitePool> {
+    Router::new()
+        .route("/posts/:id", get(get_posts).delete(delete_post).put(update_post))
+}
+
 
 async fn create_post(
     State(db): State<SqlitePool>,

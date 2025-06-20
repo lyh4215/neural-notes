@@ -19,3 +19,6 @@ tower-http = { version = "0.5", features = ["cors"] }
 
 # middleware
 tower = "0.4"
+redis = { version = "0.25", features = ["tokio-comp"] }
+http-body-util = "0.1"
+bytes = "1"
