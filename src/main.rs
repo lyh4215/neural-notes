@@ -50,7 +50,6 @@ async fn middleware_cache(
     //get 요청
     match req.method() {
         &Method::GET => {
-            println!("🟢 GET 요청입니다");
             // 캐시 로직 등 수행
             // Redis에 캐시된 응답이 있는지 확인
             match conn.get::<_, Option<Vec<u8>>>(&key).await {
@@ -72,12 +71,11 @@ async fn middleware_cache(
             }
         },
         &Method::PUT => {
-            println!("🟡 PUT 요청입니다");
             use models::UpdatePost;
             use models::PostResponse;
             match conn.get::<_, Option<Vec<u8>>>(&key).await {
                 Ok(Some(cached_body)) => {
-                    println!("🔄 Redis cache hit for {}", key);
+                    println!("✅ Redis cache hit for {}", key);
                     let mut payload: PostResponse = serde_json::from_slice(&cached_body).unwrap();
 
                     let (parts, body ) = req.into_parts(); //consume
