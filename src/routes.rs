@@ -108,7 +108,8 @@ async fn delete_post(
     Ok(())
 }
 
-async fn update_post(
+//todo : make this secret
+pub async fn update_post(
     State(db): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePost>,

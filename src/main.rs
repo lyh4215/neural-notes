@@ -14,10 +14,10 @@ use sqlx::{
 
 use tower_http::cors::{CorsLayer, Any};
 use redis::{AsyncCommands, UpdateCheck};
-use redis::aio::PubSub;
 use axum::http::Method;
 use futures_util::stream::StreamExt; // ✅ .next() 사용 가능하게 함
 use http_body_util::BodyExt;
+use tokio::time::{sleep, Duration};
 
 use std::sync::Arc;
 mod db;
@@ -29,7 +29,7 @@ use db::init_db;
 use axum::body::Body;
 use bytes::Bytes;
 
-use crate::models::UpdatePost;
+use crate::models::{PostResponse, UpdatePost};
 
 async fn middleware_cache(
     State(redis_client): State<Arc<redis::Client>>,
@@ -64,7 +64,24 @@ async fn middleware_cache(
                     return Ok(response);
                 }
                 Ok(None) => {
-                    println!("❌ Cache miss");
+                    println!("❌ Cache miss, find in dirty");
+                    let dirty = String::from("dirty:") + &key;
+                    match conn.get::<_, Option<Vec<u8>>>(&key).await {
+                        Ok(Some(cached_body)) => {
+                            println!("🔄 Redis cache hit for {}", key);
+                            let response = Response::builder()
+                                .status(200)
+                                .header("X-Cache", "HIT")
+                                .header("Content-Type", "application/json")
+                                .body(Body::from(cached_body))
+                                .unwrap();
+                            return Ok(response);
+                        }
+                        Ok(None) => {
+                            println!("Cache Missed again");
+                        }
+                        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                    }
                     // 계속 진행
                 }
                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -92,7 +109,9 @@ async fn middleware_cache(
                     let response_json = serde_json::to_string(&payload).unwrap();
                     let response_bytes = response_json.into_bytes();
                     let cloned_bytes = response_bytes.clone();
-                    conn.set_ex(key, cloned_bytes, 60).await.unwrap_or(());
+                    let dirty_key = String::from("dirty:") + &key;
+                    conn.set(dirty_key, cloned_bytes).await.unwrap_or(());
+                    let _ = conn.del::<_, Option<Vec<u8>>>(key).await;
                     
                     let final_response = Response::builder()
                         .status(200)
@@ -149,17 +168,50 @@ async fn middleware_logger(
 
 }
 
-async fn start_write_back_listener(client: Arc<redis::Client>) {
-    let mut pubsub = client.get_async_pubsub().await.expect("Failed to get pubsub");
-    pubsub.subscribe("__keyevent@0__:expired").await.unwrap();
+async fn start_write_back_listener(client: Arc<redis::Client>, db: SqlitePool ) {
+    let mut conn = match client.get_multiplexed_async_connection().await {
+        Ok(c) => c,
+        Err(e) => {
+            panic!("write behind thread start failed");
+        }
+    };
+    loop {
+        // Redis에서 post:* 키들을 스캔
+        let keys: Vec<String> = match conn.keys("dirty:/posts/*").await {
+            Ok(k) => k,
+            Err(e) => {
+                eprintln!("❌ Failed to get keys: {e}");
+                sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+        };
 
-    let mut stream = pubsub.into_on_message();
+        for key in keys {
+            println!("key : {key}");
+            if let Ok(Some(bytes)) = (conn.get::<_, Option<Vec<u8>>>(&key).await) {
+                // 여기서 실제 DB 저장 로직 호출 (예시로 println 사용)
+                //let strings = String::from_utf8_lossy(&bytes);
+                //println!("💾 Writing to DB from key: {key} → {strings}");
+                let json: PostResponse = serde_json::from_slice(&bytes).unwrap();
+                use models::UpdatePost;
+                use routes::update_post;
+                //TODO : from PostResponse, to UpdatePost
+                let update_json  = UpdatePost {
+                    title : Some(json.title),
+                    content : Some(json.content),
+                };
+                update_post(State(db.clone()), Path(json.id), Json(update_json)).await;
 
-    while let Some(msg) = stream.next().await {
-        let key: String = msg.get_payload().unwrap();
-        println!("Key expired: {}", key);
+                //key 제거
+                let _: () = conn.del(&key).await.unwrap_or(());
+                println!("Write behind for : {key}");
+            }
 
-        // TODO: flush to DB
+
+        }
+
+        // 10초마다 반복
+        sleep(Duration::from_secs(10)).await;
     }
 }
 
@@ -191,10 +243,10 @@ async fn main() {
         .merge(posts_cache_routes)
         .layer(from_fn(middleware_logger))
         .layer(CorsLayer::permissive())
-        .with_state(db);
+        .with_state(db.clone());
 
     // for write-back handling
-    tokio::spawn(start_write_back_listener(Arc::clone(&redis_client)));
+    tokio::spawn(start_write_back_listener(Arc::clone(&redis_client), db));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
