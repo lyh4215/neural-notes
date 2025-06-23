@@ -80,24 +80,7 @@ async fn get_posts(
         .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
     
-    /* related post 가져오기기 */
-    let all_posts: Vec<Post> = sqlx::query_as::<_, Post>(
-        "SELECT * FROM posts WHERE user_id = ? AND id != ?"
-        )
-        .bind(post.user_id)
-        .bind(post.id)
-        .fetch_all(&db)
-        .await
-        .map_err(|e| {
-            eprintln!("DB error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch related posts".to_string())
-        })?;
-    
-    // 앞 3개만 안전하게 수집
-    let related_posts: Vec<Post> = all_posts
-        .into_iter()
-        .take(3)
-        .collect();
+    let related_posts = get_related_post(&post,&db).await;
     let post_response = PostResponse {
         id: post.id,
         title: post.title,
@@ -129,7 +112,7 @@ async fn update_post(
     State(db): State<SqlitePool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePost>,
-) -> Result<Json<Post>, (StatusCode, String)> {
+) -> Result<Json<PostResponse>, (StatusCode, String)> {
 
     let mut tx = db.begin().await.map_err(internal_error)?;
 
@@ -149,9 +132,43 @@ async fn update_post(
 
     tx.commit().await.map_err(internal_error)?;
 
-    Ok(Json(post))
+    let related_posts = get_related_post(&post,&db).await;
+
+    let post_response: PostResponse = PostResponse {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        user_id: post.user_id,
+        related_posts,
+    };
+    Ok(Json(post_response))
 }
 
+async fn get_related_post(post : &Post, db: &SqlitePool ) -> Vec<Post> {
+
+    /* related post 가져오기기 */
+    let all_posts: Vec<Post> = sqlx::query_as::<_, Post>(
+        "SELECT * FROM posts WHERE user_id = ? AND id != ?"
+        )
+        .bind(post.user_id)
+        .bind(post.id)
+        .fetch_all(db)
+        .await
+        .map_err(|e| {
+            eprintln!("DB error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch related posts".to_string())
+        }).unwrap();
+    
+    // 앞 3개만 안전하게 수집
+    let related_posts: Vec<Post> = all_posts
+        .into_iter()
+        .take(3)
+        .collect();
+
+    related_posts
+}
 
 async fn create_comment(
     State(db): State<SqlitePool>,

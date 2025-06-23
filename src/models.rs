@@ -25,7 +25,7 @@ pub struct UpdatePost {
     pub content: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostResponse{
     pub id: i64,
     pub title: String,
