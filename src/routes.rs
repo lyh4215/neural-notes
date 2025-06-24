@@ -61,7 +61,7 @@ async fn create_post(
 }
 
 async fn list_posts(State(db): State<SqlitePool>) -> Json<Vec<Post>> {
-    let posts = sqlx::query_as::<_, Post>("SELECT * FROM posts")
+    let posts = sqlx::query_as::<_, Post>("SELECT * FROM posts LIMIT 20;")
         .fetch_all(&db)
         .await
         .unwrap();
