@@ -13,6 +13,7 @@ use cache::{init_cache, write_behind, middleware_cache};
 
 use std::sync::Arc;
 mod db;
+use db::init_db;
 
 mod models;
 mod routes;
