@@ -92,25 +92,23 @@ async fn main() {
         .layer(middleware::from_fn_with_state(
             Arc::clone(&cache_client),
             middleware_cache,
-        ))
-        .layer(middleware::from_fn(middleware_auth));
-    let posts_routes_auth = post_routes_auth()
-        .layer(middleware::from_fn(middleware_auth));
+        ));
+    let posts_routes_auth = post_routes_auth();
 
-    let test_auth = Router::new()
+    let authorized_routes = Router::new()
+        .merge(posts_routes)
+        .merge(posts_cache_routes)
+        .merge(posts_routes_auth)
         .route("/protected", get(protected))
         // adding the authorizer layer
         .layer(auth.into_layer());
 
-    let auth_routes: Router<SqlitePool> = Router::new()
+    let unauthorized_routes: Router<SqlitePool> = Router::new()
         .route("/login", post(login));
 
     let app = Router::new()
-        .merge(posts_routes)
-        .merge(posts_cache_routes)
-        .merge(posts_routes_auth)
-        .merge(test_auth)
-        .merge(auth_routes)
+        .merge(authorized_routes)
+        .merge(unauthorized_routes)
         .layer(from_fn(middleware_logger))
         .layer(CorsLayer::permissive())
         .with_state(db);

@@ -7,11 +7,13 @@ use axum::{
     http::StatusCode,
 };
 
+use jwt_authorizer::{
+    JwtClaims
+};
+
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool};
-use crate::models::{Post, CreatePost, UpdatePost, PostResponse,
-                    Comment, CreateComment,
-                    User, CreateUser};
+use crate::{auth::UserClaims, models::{Comment, CreateComment, CreatePost, CreateUser, Post, PostResponse, UpdatePost, User}};
 
 pub fn post_routes() -> Router<SqlitePool> {
     Router::new()
@@ -32,6 +34,7 @@ pub fn post_routes_cache() -> Router<SqlitePool> {
 
 async fn create_post(
     State(db): State<SqlitePool>,
+    JwtClaims(user) : JwtClaims<UserClaims>,
     Json(payload): Json<CreatePost>,
 ) -> Result<Json<Post>, (StatusCode, String)> {
 
@@ -39,7 +42,7 @@ async fn create_post(
     sqlx::query("INSERT INTO posts (title, content, user_id) VALUES (?, ?, ?)")
         .bind(&payload.title)
         .bind(&payload.content)
-        .bind(&payload.user_id)
+        .bind(&user.sub)
         .execute(&mut *tx)
         .await
         .map_err(|e| {
@@ -65,8 +68,10 @@ async fn create_post(
     Ok(Json(post))
 }
 
-async fn list_posts(State(db): State<SqlitePool>) -> Json<Vec<Post>> {
-    let posts = sqlx::query_as::<_, Post>("SELECT * FROM posts LIMIT 20;")
+async fn list_posts(State(db): State<SqlitePool>, JwtClaims(user) : JwtClaims<UserClaims>) -> Json<Vec<Post>> {
+    let posts = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE user_id = ? 
+    ORDER BY created_at DESC;")
+        .bind(user.sub)
         .fetch_all(&db)
         .await
         .unwrap();
@@ -77,9 +82,11 @@ async fn list_posts(State(db): State<SqlitePool>) -> Json<Vec<Post>> {
 async fn get_posts(
     State(db): State<SqlitePool>,
     Path(id): Path<i64>,
+    JwtClaims(user) : JwtClaims<UserClaims>,
 ) -> Result<Json<PostResponse>, (StatusCode, String)> {
-    let post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = ?")
+    let post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = ? AND user_id = ?")
         .bind(id)
+        .bind(user.sub)
         .fetch_one(&db)
         .await
         .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
@@ -101,10 +108,12 @@ async fn get_posts(
 async fn delete_post(
     State(db): State<SqlitePool>,
     Path(id): Path<i64>,
+    JwtClaims(user) : JwtClaims<UserClaims>,
 ) -> Result<(), (StatusCode, String)> {
 
-    sqlx::query("DELETE FROM posts WHERE id = ?")
+    sqlx::query("DELETE FROM posts WHERE id = ? and user_id = ?")
         .bind(id)
+        .bind(user.sub)
         .execute(&db)
         .await
         .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
@@ -116,16 +125,18 @@ async fn delete_post(
 //todo : make this
 pub async fn update_post(
     State(db): State<SqlitePool>,
+    JwtClaims(user) : JwtClaims<UserClaims>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePost>,
 ) -> Result<Json<PostResponse>, (StatusCode, String)> {
 
     let mut tx = db.begin().await.map_err(internal_error)?;
 
-    sqlx::query("UPDATE posts SET title = ?, content = ? WHERE id = ?")
+    sqlx::query("UPDATE posts SET title = ?, content = ? WHERE id = ? AND user_id = ?")
         .bind(&payload.title)
         .bind(&payload.content)
         .bind(id)
+        .bind(user.sub)
         .execute(&mut *tx)
         .await
         .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
@@ -150,6 +161,43 @@ pub async fn update_post(
         related_posts,
     };
     Ok(Json(post_response))
+
+}
+
+pub async fn __update_post_from_cache(
+    State(db): State<SqlitePool>,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdatePost>
+) {
+        let mut tx = db.begin().await.map_err(internal_error).unwrap();
+
+    sqlx::query("UPDATE posts SET title = ?, content = ? WHERE id = ? AND user_id = ?")
+        .bind(&payload.title)
+        .bind(&payload.content)
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string())).unwrap();
+
+    let post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = ?")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string())).unwrap();
+
+    tx.commit().await.map_err(internal_error).unwrap();
+
+    let related_posts = get_related_post(&post,&db).await;
+
+    let post_response: PostResponse = PostResponse {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        user_id: post.user_id,
+        related_posts,
+    };
 }
 
 async fn get_related_post(post : &Post, db: &SqlitePool ) -> Vec<Post> {

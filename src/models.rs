@@ -16,7 +16,7 @@ pub struct Post {
 pub struct CreatePost {
     pub title: String,
     pub content: String,
-    pub user_id: i64,
+    //pub user_id: i64,
 }
 
 #[derive(Debug, Deserialize)]

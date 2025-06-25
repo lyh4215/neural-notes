@@ -60,7 +60,7 @@ pub async fn login(
     //jwt token 발급
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET not set");
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    let exp = now + 10;
+    let exp = now + 6000; //1h
     let claims = TokenClaims {
         sub: user.id,
         username: user.username.to_string(),

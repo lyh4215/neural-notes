@@ -51,13 +51,13 @@ pub async fn write_behind(client: Arc<redis::Client>, db: SqlitePool) {
                 use crate::models::PostResponse;
                 let json: PostResponse = serde_json::from_slice(&bytes).unwrap();
                 use crate::models::UpdatePost;
-                use crate::routes::update_post;
+                use crate::routes::__update_post_from_cache;
                 //TODO : from PostResponse, to UpdatePost
                 let update_json  = UpdatePost {
                     title : Some(json.title),
                     content : Some(json.content),
                 };
-                let _ = update_post(State(db.clone()), Path(json.id), Json(update_json)).await.unwrap();
+                let _ = __update_post_from_cache(State(db.clone()), Path(json.id), Json(update_json)).await;
 
                 //key 제거
                 let _: () = conn.del(&key).await.unwrap_or(());
