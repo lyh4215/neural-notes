@@ -23,3 +23,7 @@ redis = { version = "0.32.2", features = ["tokio-comp", "aio"] }
 http-body-util = "0.1"
 bytes = "1"
 futures-util = "0.3.31"
+jwt-authorizer = "0.15.0"
+jsonwebtoken = "9.3.1"
+dotenv = "0.15.0"
+bcrypt = "0.17.0"

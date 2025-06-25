@@ -6,6 +6,8 @@ use axum::{
     Router,
     http::StatusCode,
 };
+
+use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool};
 use crate::models::{Post, CreatePost, UpdatePost, PostResponse,
                     Comment, CreateComment,
@@ -13,11 +15,14 @@ use crate::models::{Post, CreatePost, UpdatePost, PostResponse,
 
 pub fn post_routes() -> Router<SqlitePool> {
     Router::new()
-        .route("/posts", get(list_posts).post(create_post))
-        .route("/comments", get(list_comments).post(create_comment))
         .route("/accounts", get(list_accounts).post(create_account))
 }
 
+pub fn post_routes_auth() -> Router<SqlitePool> {
+    Router::new()
+        .route("/posts", get(list_posts).post(create_post))
+        .route("/comments", get(list_comments).post(create_comment))
+}
 
 pub fn post_routes_cache() -> Router<SqlitePool> {
     Router::new()
@@ -210,15 +215,21 @@ async fn list_comments(State(db): State<SqlitePool>) -> Json<Vec<Comment>> {
 
     Json(comments)
 }
+
+use bcrypt::{hash, DEFAULT_COST};
+
 async fn create_account(
     State(db): State<SqlitePool>,
     Json(payload): Json<CreateUser>,
 ) -> Result<Json<User>, (StatusCode, String)> {
     let mut tx = db.begin().await.map_err(internal_error)?;
 
+    let hashed_password = hash(&payload.password, DEFAULT_COST)
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("hash error: {e}")))?;
+
     sqlx::query("INSERT INTO users (username, password) VALUES (?, ?)")
         .bind(&payload.username)
-        .bind(&payload.password)
+        .bind(&hashed_password)
         .execute(&mut *tx)
         .await
         .map_err(internal_error)?;
