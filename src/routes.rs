@@ -169,9 +169,9 @@ pub async fn __update_post_from_cache(
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePost>
 ) {
-        let mut tx = db.begin().await.map_err(internal_error).unwrap();
+    let mut tx = db.begin().await.map_err(internal_error).unwrap();
 
-    sqlx::query("UPDATE posts SET title = ?, content = ? WHERE id = ? AND user_id = ?")
+    sqlx::query("UPDATE posts SET title = ?, content = ? WHERE id = ?")
         .bind(&payload.title)
         .bind(&payload.content)
         .bind(id)
@@ -179,25 +179,10 @@ pub async fn __update_post_from_cache(
         .await
         .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string())).unwrap();
 
-    let post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = ?")
-        .bind(id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string())).unwrap();
 
     tx.commit().await.map_err(internal_error).unwrap();
 
-    let related_posts = get_related_post(&post,&db).await;
 
-    let post_response: PostResponse = PostResponse {
-        id: post.id,
-        title: post.title,
-        content: post.content,
-        created_at: post.created_at,
-        updated_at: post.updated_at,
-        user_id: post.user_id,
-        related_posts,
-    };
 }
 
 async fn get_related_post(post : &Post, db: &SqlitePool ) -> Vec<Post> {

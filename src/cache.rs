@@ -109,7 +109,7 @@ pub async fn middleware_cache(
                 Ok(None) => {
                     println!("❌ Cache miss, find in dirty");
                     let dirty = String::from("dirty:") + &key;
-                    match conn.get::<_, Option<Vec<u8>>>(&key).await {
+                    match conn.get::<_, Option<Vec<u8>>>(&dirty).await {
                         Ok(Some(cached_body)) => {
                             println!("🔄 Redis cache hit for {}", key);
                             let response = Response::builder()
