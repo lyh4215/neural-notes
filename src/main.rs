@@ -11,7 +11,7 @@ use tower_http::cors::{CorsLayer};
 
 //cache
 mod cache;
-use cache::{init_cache, write_behind, middleware_cache};
+use cache::{init_cache, write_behind, delete_event_listener, middleware_cache};
 
 //auth
 use jwt_authorizer::{
@@ -77,7 +77,8 @@ async fn main() {
     let db = init_db().await;
     let cache_client = init_cache().await;
     // for write-back handling
-    tokio::spawn(write_behind(Arc::clone(&cache_client), db.clone()));
+    tokio::spawn(write_behind(cache_client.clone(), db.clone()));
+    tokio::spawn(delete_event_listener(cache_client.clone(), db.clone()));
     
 
     // First let's create an authorizer builder from a Oidc Discovery
@@ -90,7 +91,7 @@ async fn main() {
     let posts_routes = post_routes();
     let posts_cache_routes = post_routes_cache()
         .layer(middleware::from_fn_with_state(
-            Arc::clone(&cache_client),
+            cache_client.clone(),
             middleware_cache,
         ));
     let posts_routes_auth = post_routes_auth();

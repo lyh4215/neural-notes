@@ -1,9 +1,6 @@
 //Write-Behind Redis Cache
 use axum::{
-    extract::{Path, State},
-    Json,
-    middleware::{ Next},
-    http::{Request, StatusCode, Response},
+    extract::{Path, State}, http::{response, Request, Response, StatusCode}, middleware::Next, Json
 };
 use sqlx::{
     SqlitePool,
@@ -11,20 +8,27 @@ use sqlx::{
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use redis::{AsyncCommands};
+use redis::{AsyncCommands, RedisResult};
 use axum::http::Method;
 use http_body_util::BodyExt;
 use bytes::Bytes;
 use axum::body::Body;
 
+use futures_util::StreamExt;
 
-pub async fn init_cache() ->  Arc<redis::Client>{
+pub async fn init_cache() ->  redis::Client {
     //redis setting (keyevent notification channel)
-    let redis_client = Arc::new(redis::Client::open("redis://127.0.0.1/").unwrap());
+    let redis_client =redis::Client::open("redis://127.0.0.1/").unwrap();
+    let mut conn = redis_client.get_connection().unwrap();
+    let _: () = redis::cmd("CONFIG")
+        .arg("SET")
+        .arg("notify-keyspace-events")
+        .arg("Ex")
+        .query(&mut conn).unwrap();
     redis_client
 }
 //background worker
-pub async fn write_behind(client: Arc<redis::Client>, db: SqlitePool) {
+pub async fn write_behind(client: redis::Client, db: SqlitePool) {
     let mut conn = match client.get_multiplexed_async_connection().await {
         Ok(c) => c,
         Err(e) => {
@@ -73,9 +77,39 @@ pub async fn write_behind(client: Arc<redis::Client>, db: SqlitePool) {
 }
 
 
+pub async fn delete_event_listener(
+    client: redis::Client,
+    db: SqlitePool,
+)  {
+    let mut pubsub_conn = client.get_async_pubsub().await.unwrap();
+
+    // expire 이벤트 구독
+    pubsub_conn.subscribe("__keyevent@0__:expired").await.unwrap();
+
+    println!("📡 Redis expired 이벤트 리스닝 시작");
+
+    while let Some(msg) = pubsub_conn.on_message().next().await {
+        let expired_key: String = msg.get_payload().unwrap();
+
+        // delete:/posts/ 만 감지
+        if let Some(post_id_str) = expired_key.strip_prefix("delete:/posts/") {
+            if let Ok(post_id) = post_id_str.parse::<i64>() {
+                println!("🧹 expired 감지됨: delete marker for post_id={}", post_id);
+
+                // 실제 DB에서 삭제
+                let result = sqlx::query("DELETE FROM posts WHERE id = ?")
+                    .bind(post_id)
+                    .execute(&db)
+                    .await.unwrap();
+
+                println!("✅ DB에서 post {} 삭제 완료 ({} rows affected)", post_id, result.rows_affected());
+            }
+        }
+    }
+}
 //middleware
 pub async fn middleware_cache(
-    State(redis_client): State<Arc<redis::Client>>,
+    State(redis_client): State<redis::Client>,
     req: Request<Body>,
     next: Next
 ) -> Result<Response<Body>, StatusCode> {
@@ -90,9 +124,24 @@ pub async fn middleware_cache(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
+
+    // 이미 삭제된거면, 안보이게 해야 함 
+    let del_key = String::from("dirty:") + &key;
+    if conn.exists(&del_key).await.unwrap() {
+        let final_response = Response::builder()
+            .status(404)
+            .body(Body::empty())
+            .unwrap();
+
+        return Ok(final_response);
+    }
+
+    //삭제 안됐을때.
+    
     //get 요청
     match req.method() {
         &Method::GET => {
+            println!("GET");
             // 캐시 로직 등 수행
             // Redis에 캐시된 응답이 있는지 확인
             match conn.get::<_, Option<Vec<u8>>>(&key).await {
@@ -131,6 +180,7 @@ pub async fn middleware_cache(
             }
         },
         &Method::PUT => {
+            println!("PUT");
             use crate::models::UpdatePost;
             use crate::models::PostResponse;
             match conn.get::<_, Option<Vec<u8>>>(&key).await {
@@ -154,7 +204,7 @@ pub async fn middleware_cache(
                     let cloned_bytes = response_bytes.clone();
                     let dirty_key = String::from("dirty:") + &key;
                     conn.set(dirty_key, cloned_bytes).await.unwrap_or(());
-                    let _ = conn.del::<_, Option<Vec<u8>>>(key).await;
+                    let _ :RedisResult<i32>  = conn.del(key).await;
                     
                     let final_response = Response::builder()
                         .status(200)
@@ -174,25 +224,51 @@ pub async fn middleware_cache(
             
             // write-back 캐시 등 수행
         },
+        &Method::DELETE => { //DELETE일때는 캐시에 delete tag 붙여서 기록
+            println!("DEL");
+            let result :RedisResult<i32> = conn.del(&key).await;
+            match result {
+                Ok(i)   => println!("deleted {i}"),
+                Err(e) => println!("err {e}"),
+            }
+            let dirty_key = String::from("dirty:") + &key;
+            let _  :RedisResult<i32>= conn.del(&dirty_key).await;
+            let del_key = String::from("delete:") + &key;
+            let _ : RedisResult<()>= conn.set_ex(&del_key, "1", 10).await;
+            let response = Response::builder()
+                .status(204)
+                .body(axum::body::Body::empty())
+                .unwrap();
+            return Ok(response);
+        }
         _ => {
             println!("🔴 기타 요청");
         }
     }
 
-
+    let method = req.method().clone();
     // 없으면 요청을 처리
     let response = next.run(req).await;
 
-    // 바디 추출
-    let (parts, body) = response.into_parts();
-    let collected = body.collect().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let bytes: Bytes = collected.to_bytes(); // bytes로 변환
-    let cloned_body = bytes.clone();
+    //GET : Cache miss
+    //PUT : Cache miss
+    //DELETE : not reached
+    match method {
+        Method::GET | Method::PUT => {
+            // 바디 추출
+            let (parts, body) = response.into_parts();
+            let collected = body.collect().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let bytes: Bytes = collected.to_bytes(); // bytes로 변환
+            let cloned_body = bytes.clone();
 
-    // Redis에 저장 (TTL: 60초)
-    let _: () = conn.set_ex::<_, _, ()>(key, cloned_body.to_vec(), 60).await.unwrap_or(());
+            // Redis에 저장 (TTL: 60초)
+            let _: () = conn.set_ex::<_, _, ()>(key, cloned_body.to_vec(), 60).await.unwrap_or(());
 
-    // 다시 Response로 재조립
-    let final_response = Response::from_parts(parts, Body::from(bytes));
-    Ok(final_response)
+            //response 재조립립
+            let final_response = Response::from_parts(parts, Body::from(bytes));
+            Ok(final_response)
+        },
+        _ => Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
 }
