@@ -12,6 +12,7 @@ use jwt_authorizer::{
     JwtClaims
 };
 
+use redis::aio::MultiplexedConnection;
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool};
 use crate::{auth::UserClaims, models::{CreatePost, Post, PostResponse, UpdatePost, User}};
@@ -19,12 +20,12 @@ use crate::{auth::UserClaims, models::{CreatePost, Post, PostResponse, UpdatePos
 //cache
 use crate::cache::{middleware_cache};
 
-pub fn routes(redis_client : redis::Client) -> Router<SqlitePool> {
+pub fn routes(mut conn: MultiplexedConnection) -> Router<SqlitePool> {
     Router::new()
         .merge(post_routes_auth())
         .merge(post_routes_cache()
                             .layer(middleware::from_fn_with_state(
-                            redis_client.clone(),
+                            conn,
                             middleware_cache,
         )))
 }

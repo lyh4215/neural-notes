@@ -56,17 +56,21 @@ async fn main() {
     dotenv().ok();
     // build our application with a single route
     let db = init_db().await;
-    let cache_client = init_cache().await;
+    let client = init_cache().await;
+
+    //redis-rs의 conn은 clone시 내부적으로 connection을 하나로 유지하기 때문에, clone해서 넘겨주어도 상관없음.
+    //handle(conn)은 쓰레드간 공유 필요 x
+    let conn = client.get_multiplexed_async_connection().await.unwrap();
     // for write-back handling
-    tokio::spawn(write_behind(cache_client.clone(), db.clone()));
-    tokio::spawn(delete_event_listener(cache_client.clone(), db.clone()));
+    tokio::spawn(write_behind(conn.clone(), db.clone()));
+    tokio::spawn(delete_event_listener(client.clone(), db.clone()));
     
     let auth : Authorizer<auth::UserClaims> = JwtAuthorizer::from_secret(&std::env::var("JWT_SECRET").expect("JWT_SECRET not set"))
         .build()
         .await.unwrap();
 
     let protected_routes = Router::new()
-        .merge(posts::routes(cache_client.clone()))
+        .merge(posts::routes(conn.clone()))
         .merge(routes::routes())
         // adding the authorizer layer
         .layer(auth.into_layer());

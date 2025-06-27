@@ -8,7 +8,7 @@ use sqlx::{
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use redis::{AsyncCommands, RedisResult};
+use redis::{aio::MultiplexedConnection, AsyncCommands, RedisResult};
 use axum::http::Method;
 use http_body_util::BodyExt;
 use bytes::Bytes;
@@ -28,13 +28,7 @@ pub async fn init_cache() ->  redis::Client {
     redis_client
 }
 //background worker
-pub async fn write_behind(client: redis::Client, db: SqlitePool) {
-    let mut conn = match client.get_multiplexed_async_connection().await {
-        Ok(c) => c,
-        Err(e) => {
-            panic!("write behind thread start failed");
-        }
-    };
+pub async fn write_behind(mut conn: MultiplexedConnection, db: SqlitePool) {
     loop {
         // Redis에서 post:* 키들을 스캔
         let keys: Vec<String> = match conn.keys("dirty:/posts/*").await {
@@ -111,7 +105,7 @@ pub async fn delete_event_listener(
 }
 //middleware
 pub async fn middleware_cache(
-    State(redis_client): State<redis::Client>,
+    State(mut conn): State<MultiplexedConnection>,
     req: Request<Body>,
     next: Next
 ) -> Result<Response<Body>, StatusCode> {
@@ -120,12 +114,6 @@ pub async fn middleware_cache(
     .path_and_query()
     .map(|pq| pq.as_str().to_string()) // 👈 복사
     .unwrap_or_else(|| "".to_string());
-
-    let mut conn = match redis_client.get_multiplexed_async_connection().await {
-        Ok(c) => c,
-        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-    };
-
 
     // 이미 삭제된거면, 안보이게 해야 함 
     let del_key = String::from("delete:") + &key;
