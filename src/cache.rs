@@ -65,6 +65,8 @@ pub async fn write_behind(client: redis::Client, db: SqlitePool) {
 
                 //key 제거
                 let _: () = conn.del(&key).await.unwrap_or(());
+                let clean_key = key.strip_prefix("dirty:").unwrap_or(&key).to_string();
+                let _: () = conn.set_ex(&clean_key, bytes, 10).await.unwrap_or(()); // 예: 1시간 만료
                 println!("Write behind for : {key}");
             }
 
