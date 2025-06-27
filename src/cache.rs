@@ -55,7 +55,7 @@ pub async fn write_behind(client: redis::Client, db: SqlitePool) {
                 use crate::models::PostResponse;
                 let json: PostResponse = serde_json::from_slice(&bytes).unwrap();
                 use crate::models::UpdatePost;
-                use crate::routes::__update_post_from_cache;
+                use crate::posts::__update_post_from_cache;
                 //TODO : from PostResponse, to UpdatePost
                 let update_json  = UpdatePost {
                     title : Some(json.title),
