@@ -27,3 +27,6 @@ jwt-authorizer = "0.15.0"
 jsonwebtoken = "9.3.1"
 dotenv = "0.15.0"
 bcrypt = "0.17.0"
+
+# pretty print
+colored = "2"

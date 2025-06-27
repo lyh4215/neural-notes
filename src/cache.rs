@@ -13,7 +13,7 @@ use axum::http::Method;
 use http_body_util::BodyExt;
 use bytes::Bytes;
 use axum::body::Body;
-
+use colored::*;
 use futures_util::StreamExt;
 
 pub async fn init_cache() ->  redis::Client {
@@ -86,7 +86,7 @@ pub async fn delete_event_listener(
     // expire 이벤트 구독
     pubsub_conn.subscribe("__keyevent@0__:expired").await.unwrap();
 
-    println!("📡 Redis expired 이벤트 리스닝 시작");
+    println!("{} Redis expired event listening", "Start".green().bold());
 
     while let Some(msg) = pubsub_conn.on_message().next().await {
         let expired_key: String = msg.get_payload().unwrap();
@@ -183,9 +183,10 @@ pub async fn middleware_cache(
             println!("PUT");
             use crate::models::UpdatePost;
             use crate::models::PostResponse;
-            match conn.get::<_, Option<Vec<u8>>>(&key).await {
+            let dirty_key = String::from("dirty:") + &key;
+            match conn.get::<_, Option<Vec<u8>>>(&dirty_key).await {
                 Ok(Some(cached_body)) => {
-                    println!("✅ Redis cache hit for {}", key);
+                    println!("✅ Redis dirty hit {}", key);
                     let mut payload: PostResponse = serde_json::from_slice(&cached_body).unwrap();
 
                     let (parts, body ) = req.into_parts(); //consume
@@ -216,10 +217,47 @@ pub async fn middleware_cache(
                     return Ok(final_response);
                 }
                 Ok(None) => {
-                    println!("❌ Cache miss");
-                    // 계속 진행
+                    match conn.get::<_, Option<Vec<u8>>>(&key).await {
+                        Ok(Some(cached_body)) => {
+                            println!("✅ Redis cache hit for {}", key);
+                            let mut payload: PostResponse = serde_json::from_slice(&cached_body).unwrap();
+        
+                            let (parts, body ) = req.into_parts(); //consume
+                            let collected = body.collect().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                            let bytes: Bytes = collected.to_bytes(); // bytes로 변환
+                            let parsed_body: UpdatePost = serde_json::from_slice(&bytes).unwrap();
+        
+                            if let Some(content) = parsed_body.content {
+                                payload.content = content;
+                            }
+                            if let Some(title) = parsed_body.title {
+                                payload.title = title;
+                            }
+                            let response_json = serde_json::to_string(&payload).unwrap();
+                            let response_bytes = response_json.into_bytes();
+                            let cloned_bytes = response_bytes.clone();
+                            let dirty_key = String::from("dirty:") + &key;
+                            conn.set(dirty_key, cloned_bytes).await.unwrap_or(());
+                            let _ :RedisResult<i32>  = conn.del(key).await;
+                            
+                            let final_response = Response::builder()
+                                .status(200)
+                                .header("X-Cache", "HIT")
+                                .header("Content-Type", "application/json")
+                                .body(Body::from(response_bytes))
+                                .unwrap();
+        
+                            return Ok(final_response);
+                        }
+                        Ok(None) => {
+                            println!("❌ Cache miss");
+                            // 계속 진행
+                        }
+                        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                    }
                 }
-                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            
             }
             
             // write-back 캐시 등 수행
