@@ -126,7 +126,7 @@ pub async fn middleware_cache(
 
 
     // 이미 삭제된거면, 안보이게 해야 함 
-    let del_key = String::from("dirty:") + &key;
+    let del_key = String::from("delete:") + &key;
     if conn.exists(&del_key).await.unwrap() {
         let final_response = Response::builder()
             .status(404)
