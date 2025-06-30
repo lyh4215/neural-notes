@@ -8,10 +8,6 @@ use axum::{
 use sqlx::SqlitePool;
 use tower_http::cors::{CorsLayer};
 
-//cache
-// mod cache;
-// use cache::{init_cache, write_behind, delete_event_listener, middleware};
-
 //auth
 use jwt_authorizer::{
     error::InitError, AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
@@ -25,7 +21,6 @@ use auth::login;
 use dotenv::dotenv;
 
 
-use std::sync::Arc;
 mod db;
 use db::init_db;
 
@@ -36,7 +31,6 @@ mod posts;
 
 use axum::body::Body;
 
-use crate::posts::delete_callback;
 
 async fn middleware_logger(    
     req: Request<Body>,
@@ -57,16 +51,9 @@ async fn main() {
     dotenv().ok();
 
     let db = init_db().await;
-    //let client = init_cache().await;
     let auth = auth::init_auth().await;
     let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
 
-    // //redis-rs의 conn은 clone시 내부적으로 connection을 하나로 유지하기 때문에, clone해서 넘겨주어도 상관없음.
-    // //handle(conn)은 쓰레드간 공유 필요 x
-    // let conn = client.get_multiplexed_async_connection().await.unwrap();
-    // // for write-back handling
-    // tokio::spawn(write_behind(conn.clone(), db.clone(), posts::callback));
-    // tokio::spawn(delete_event_listener(client.clone(), db.clone(), delete_callback));
     let key = String::from("/posts/");
     let cache_manager = cache_connection.get_manager(key, posts::callback, posts::delete_callback, posts::write_to_cache);
 
