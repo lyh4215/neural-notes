@@ -54,7 +54,7 @@ async fn main() {
     let auth = auth::init_auth().await;
     let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
 
-    let key = String::from("/posts/");
+    let key = String::from("posts");
     let cache_manager = cache_connection.get_manager(key, posts::callback, posts::delete_callback, posts::write_to_cache);
 
     let protected_routes = Router::new()
