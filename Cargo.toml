@@ -30,3 +30,6 @@ bcrypt = "0.17.0"
 
 # pretty print
 colored = "2"
+
+# cache
+axum-redis-cache = { git = "https://github.com/lyh4215/axum-redis-cache.git", branch = "main"}

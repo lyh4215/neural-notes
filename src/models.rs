@@ -36,14 +36,6 @@ pub struct PostResponse{
     pub related_posts: Vec<Post>,
 }
 
-// impl From<CreatePost> for Post {
-//     fn from(create: CreatePost) -> Self {
-//         Post {
-//             title: create.title,
-//             content: create.content,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {

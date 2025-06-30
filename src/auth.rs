@@ -18,6 +18,10 @@ struct TokenClaims {
     exp: usize,
 }
 
+use jwt_authorizer::{
+    error::InitError, AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
+};
+
 //for auth
 /// Object representing claims
 /// (a subset of deserialized claims)
@@ -37,7 +41,11 @@ pub struct UserLogin {
 pub struct AccessToken {
     access_token : String,
 }
-
+pub async fn init_auth() -> Authorizer<UserClaims>{
+    JwtAuthorizer::from_secret(&std::env::var("JWT_SECRET").expect("JWT_SECRET not set"))
+    .build()
+    .await.unwrap()
+}
 pub async fn login(
     State(db): State<SqlitePool>,
     Json(payload) : Json<UserLogin>)
