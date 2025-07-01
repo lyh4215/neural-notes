@@ -52,7 +52,12 @@ async fn main() {
 
     let db = init_db().await;
     let auth = auth::init_auth().await;
-    let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
+    //let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
+    let cacheconfig = axum_redis_cache::CacheConfig::new()
+        .with_url("redis://127.0.0.1")
+        .with_write_duration(20);
+    
+    let cache_connection = axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
 
     let key = String::from("posts");
     let cache_manager = cache_connection.get_manager(key, posts::callback, posts::delete_callback, posts::write_to_cache);
