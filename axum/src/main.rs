@@ -49,13 +49,12 @@ async fn middleware_logger(
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-
     let db = init_db().await;
     let auth = auth::init_auth().await;
     //let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
     let cacheconfig = axum_redis_cache::CacheConfig::new()
-        .with_url("redis://127.0.0.1")
-        .with_write_duration(20);
+        .with_url(std::env::var("REDIS_URL").expect("REDIS_URL must be set").as_str())
+        .with_write_duration(5);
     
     let cache_connection = axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
 

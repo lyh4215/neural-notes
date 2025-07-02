@@ -1,0 +1,6 @@
+/target
+*:Zone.Identifier
+*.db
+*.env
+libs
+libs/*

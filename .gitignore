@@ -1,4 +1,29 @@
-/target
+# 루트 환경변수
+.env
+.env.*
+
+# docker-compose override
+docker-compose.override.yml
+
+# 시스템
+.DS_Store
+Thumbs.db
+
+# SQLite 등 최상위 DB 폴더 (있다면)
+/sqlite_data/
+/db_data/
+
+# VSCode/Jetbrains 등 에디터 환경
+.vscode/
+.idea/
+*.sublime-*
+
+# log/캐시/테스트 산출물 (프로젝트별 필요에 따라)
+/tmp/
+*.log
+
+target*
+
 *:Zone.Identifier
 *.db
 *.env
