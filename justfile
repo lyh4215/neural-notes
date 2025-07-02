@@ -41,7 +41,6 @@ logs:
 # .env 예시 복사 (옵션)
 env:
     cp axum/.env.example axum/.env
-    cp react/.env.example react/.env
 
 # 정리(clean)
 clean:
