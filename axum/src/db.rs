@@ -1,20 +1,17 @@
 // src/db.rs
 
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use std::path::Path;
+use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
+use std::env;
 
 pub async fn init_db() -> SqlitePool {
-    let db_path = "posts.db";
-    if !Path::new(db_path).exists() {
-        println!("DB 파일이 없어 빈 파일을 생성합니다: {}", db_path);
-        std::fs::File::create(db_path).expect("DB 파일 생성 실패");
-    }
+    let db_path = std::env::var("DATABASE_PATH").unwrap_or_else(|_| "./posts.db".to_string());
+    let options = SqliteConnectOptions::new()
+        .filename(db_path)
+        .create_if_missing(true);
 
-    let db = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&format!("sqlite://{}", db_path))
+    let db = SqlitePool::connect_with(options)
         .await
-        .expect("DB 연결 실패");
+        .expect("DB connection failed");
     sqlx::migrate!().run(&db).await.unwrap();
     db
 }
