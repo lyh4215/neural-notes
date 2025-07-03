@@ -1,13 +1,12 @@
-
-use jsonwebtoken::{encode, Header, EncodingKey};
-use std::time::{SystemTime, UNIX_EPOCH};
 use axum::{
-        extract::{State,Json},
-        http::{Request, StatusCode, Response},
-    };
-use serde::{Serialize, Deserialize};
+    extract::{Json, State},
+    http::{Request, Response, StatusCode},
+};
 use bcrypt::verify;
+use jsonwebtoken::{EncodingKey, Header, encode};
+use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::models::User;
 
@@ -19,7 +18,8 @@ struct TokenClaims {
 }
 
 use jwt_authorizer::{
-    error::InitError, AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
+    AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
+    error::InitError,
 };
 
 //for auth
@@ -39,19 +39,20 @@ pub struct UserLogin {
 
 #[derive(serde::Serialize)]
 pub struct AccessToken {
-    access_token : String,
+    access_token: String,
 }
-pub async fn init_auth() -> Authorizer<UserClaims>{
+pub async fn init_auth() -> Authorizer<UserClaims> {
     JwtAuthorizer::from_secret(&std::env::var("JWT_SECRET").expect("JWT_SECRET not set"))
-    .build()
-    .await.unwrap()
+        .build()
+        .await
+        .unwrap()
 }
 pub async fn login(
     State(db): State<SqlitePool>,
-    Json(payload) : Json<UserLogin>)
--> Result<Json<AccessToken>, (StatusCode, String)> {
+    Json(payload): Json<UserLogin>,
+) -> Result<Json<AccessToken>, (StatusCode, String)> {
     //db에서 찾기
-    let user : User = sqlx::query_as("SELECT * FROM users WHERE username = ?")
+    let user: User = sqlx::query_as("SELECT * FROM users WHERE username = ?")
         .bind(payload.username)
         .fetch_one(&db)
         .await
@@ -67,13 +68,23 @@ pub async fn login(
 
     //jwt token 발급
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET not set");
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let exp = now + 6000; //1h
     let claims = TokenClaims {
         sub: user.id,
         username: user.username.to_string(),
         exp: exp as usize,
     };
-    let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap();
-    Ok(Json(AccessToken { access_token: token }))
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap();
+    Ok(Json(AccessToken {
+        access_token: token,
+    }))
 }

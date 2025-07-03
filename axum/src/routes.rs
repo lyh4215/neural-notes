@@ -1,34 +1,34 @@
 // src/routes.rs
 
 use axum::{
-    extract::{State, Json, Path},
-    routing::{get, post, delete, put},
     Router,
+    extract::{Json, Path, State},
     http::StatusCode,
+    routing::{delete, get, post, put},
 };
 
-use jwt_authorizer::{
-    JwtClaims
-};
+use jwt_authorizer::JwtClaims;
 
+use crate::{
+    auth::UserClaims,
+    models::{
+        Comment, CreateComment, CreatePost, CreateUser, Post, PostResponse, UpdatePost, User,
+    },
+};
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool};
-use crate::{auth::UserClaims, models::{Comment, CreateComment, CreatePost, CreateUser, Post, PostResponse, UpdatePost, User}};
+use sqlx::SqlitePool;
 
 pub fn public_routes() -> Router<SqlitePool> {
-    Router::new()
-        .route("/accounts", get(list_accounts).post(create_account))
+    Router::new().route("/accounts", get(list_accounts).post(create_account))
 }
 
 pub fn routes() -> Router<SqlitePool> {
-    Router::new()
-        .route("/comments", get(list_comments).post(create_comment))
+    Router::new().route("/comments", get(list_comments).post(create_comment))
 }
 async fn create_comment(
     State(db): State<SqlitePool>,
     Json(payload): Json<CreateComment>,
 ) -> Result<Json<Comment>, (StatusCode, String)> {
-    
     let mut tx = db.begin().await.map_err(internal_error)?;
     sqlx::query("INSERT INTO comments (content, post_id, user_id) VALUES (?, ?, ?)")
         .bind(&payload.content)
@@ -64,7 +64,7 @@ async fn list_comments(State(db): State<SqlitePool>) -> Json<Vec<Comment>> {
     Json(comments)
 }
 
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash};
 
 async fn create_account(
     State(db): State<SqlitePool>,
@@ -72,8 +72,12 @@ async fn create_account(
 ) -> Result<Json<User>, (StatusCode, String)> {
     let mut tx = db.begin().await.map_err(internal_error)?;
 
-    let hashed_password = hash(&payload.password, DEFAULT_COST)
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("hash error: {e}")))?;
+    let hashed_password = hash(&payload.password, DEFAULT_COST).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("hash error: {e}"),
+        )
+    })?;
 
     sqlx::query("INSERT INTO users (username, password) VALUES (?, ?)")
         .bind(&payload.username)

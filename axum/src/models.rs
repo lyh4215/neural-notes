@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Post {
@@ -26,7 +26,7 @@ pub struct UpdatePost {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostResponse{
+pub struct PostResponse {
     pub id: i64,
     pub title: String,
     pub content: String,
@@ -35,7 +35,6 @@ pub struct PostResponse{
     pub user_id: i64,
     pub related_posts: Vec<Post>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {

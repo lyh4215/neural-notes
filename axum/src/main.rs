@@ -1,25 +1,23 @@
 use axum::{
     Router,
-    middleware::{self, from_fn, Next},
-    http::{Request, StatusCode, Response},
-    extract::{State, Json},
+    extract::{Json, State},
+    http::{Request, Response, StatusCode},
+    middleware::{self, Next, from_fn},
 };
 
 use sqlx::SqlitePool;
-use tower_http::cors::{CorsLayer};
+use tower_http::cors::CorsLayer;
 
 //auth
+use axum::routing::{delete, get, post, put};
 use jwt_authorizer::{
-    error::InitError, AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
+    AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
+    error::InitError,
 };
 use serde::{Deserialize, Serialize};
-use axum::{
-    routing::{get, post, delete, put},
-};
 mod auth;
 use auth::login;
 use dotenv::dotenv;
-
 
 mod db;
 use db::init_db;
@@ -31,19 +29,13 @@ mod posts;
 
 use axum::body::Body;
 
-
-async fn middleware_logger(    
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response<Body>, StatusCode> {
+async fn middleware_logger(req: Request<Body>, next: Next) -> Result<Response<Body>, StatusCode> {
     println!("→ incoming request: {}", req.uri());
 
-    
     let res = next.run(req).await;
 
     println!("← outgoing response: {}", res.status());
     Ok(res)
-
 }
 
 #[tokio::main]
@@ -53,13 +45,23 @@ async fn main() {
     let auth = auth::init_auth().await;
     //let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
     let cacheconfig = axum_redis_cache::CacheConfig::new()
-        .with_url(std::env::var("REDIS_URL").expect("REDIS_URL must be set").as_str())
+        .with_url(
+            std::env::var("REDIS_URL")
+                .expect("REDIS_URL must be set")
+                .as_str(),
+        )
         .with_write_duration(5);
-    
-    let cache_connection = axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
+
+    let cache_connection =
+        axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
 
     let key = String::from("posts");
-    let cache_manager = cache_connection.get_manager(key, posts::callback, posts::delete_callback, posts::write_to_cache);
+    let cache_manager = cache_connection.get_manager(
+        key,
+        posts::callback,
+        posts::delete_callback,
+        posts::write_to_cache,
+    );
 
     let protected_routes = Router::new()
         .merge(posts::routes(cache_manager))
