@@ -5,7 +5,7 @@ use axum::{
     middleware::{self, Next, from_fn},
 };
 
-use sqlx::SqlitePool;
+use sqlx::{Postgres, pool::Pool};
 use tower_http::cors::CorsLayer;
 
 //auth
@@ -69,7 +69,7 @@ async fn main() {
         // adding the authorizer layer
         .layer(auth.into_layer());
 
-    let public_routes: Router<SqlitePool> = Router::new()
+    let public_routes: Router<Pool<Postgres>> = Router::new()
         .route("/login", post(login))
         .merge(routes::public_routes());
 
