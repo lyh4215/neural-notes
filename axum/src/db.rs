@@ -51,6 +51,7 @@ pub async fn init_db() -> PgPool {
 }
 
 pub async fn init_db_sqlite() -> SqlitePool {
+
     let db_path = std::env::var("DATABASE_PATH").unwrap_or_else(|_| "./posts.db".to_string());
     let options = SqliteConnectOptions::new()
         .filename(db_path)
