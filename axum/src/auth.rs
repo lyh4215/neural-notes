@@ -5,7 +5,7 @@ use axum::{
 use bcrypt::verify;
 use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{Postgres, pool::Pool};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::models::User;
@@ -48,11 +48,11 @@ pub async fn init_auth() -> Authorizer<UserClaims> {
         .unwrap()
 }
 pub async fn login(
-    State(db): State<SqlitePool>,
+    State(db): State<Pool<Postgres>>,
     Json(payload): Json<UserLogin>,
 ) -> Result<Json<AccessToken>, (StatusCode, String)> {
     //db에서 찾기
-    let user: User = sqlx::query_as("SELECT * FROM users WHERE username = ?")
+    let user: User = sqlx::query_as("SELECT * FROM users WHERE username = $1")
         .bind(payload.username)
         .fetch_one(&db)
         .await
