@@ -1,0 +1,9 @@
+target
+.git
+.gitignore
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+node_modules
+*.db
+*Zone.Identifier
