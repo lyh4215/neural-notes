@@ -11,7 +11,7 @@ This is monorepo of `neural-notes` app.
     git clone git@github.com:lyh4215/neural-notes.git
     cd neural-notes
     just env
-    just up
+    just dev
     ```
 3. go to http://localhost:5173
 
@@ -21,3 +21,7 @@ This is monorepo of `neural-notes` app.
 
 
 ## Frontend - react
+
+
+## Embed api - FastAPI
+- use embedding for *related post recommanding system*
