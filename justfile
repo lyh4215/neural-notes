@@ -13,6 +13,9 @@ dev:
     docker image prune -f
     docker compose -f docker-compose.dev.yml up --build
 
+dev-stop:
+    docker compose -f docker-compose.dev.yml stop
+
 # Rust 백엔드 dev 서버 실행 (로컬)
 backend:
     cd axum && REDIS_URL=redis://127.0.0.1:6379 DATABASE_HOST=localhost cargo run
@@ -20,6 +23,9 @@ backend:
 # Rust 백엔드 릴리즈 빌드
 backend-build:
     cd axum && cargo build --release
+
+embed-api:
+    cd fastapi && uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
 # 프론트엔드(dev)
 frontend:
@@ -83,3 +89,4 @@ status:
 # .env 예시 복사
 env:
     cp axum/.env.example axum/.env
+    cp .env.example .env

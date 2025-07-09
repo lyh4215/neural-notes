@@ -1,0 +1,30 @@
+FROM python:3.10-slim
+
+# 빌드 인자: 호스트 UID, GID 전달 (기본값 1000)
+ARG UID=1000
+ARG GID=1000
+
+# 필수 패키지 설치 (컴파일러, 유저 관리 유틸 포함)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# 동일 GID 그룹 생성, 존재하면 에러 무시
+RUN getent group ${GID} || addgroup --gid ${GID} appgroup
+
+# 동일 UID 유저 생성, 존재하면 에러 무시
+RUN id -u ${UID} || adduser --disabled-password --gecos "" --uid ${UID} --gid ${GID} appuser
+
+# 패키지 설치용 경로 설정
+WORKDIR /app
+
+# 종속성 파일만 복사 후 설치
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 이후 소스코드 마운트 시 권한 충돌 방지
+USER ${UID}:${GID}
+
+# FastAPI + uvicorn hot reload로 실행
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]

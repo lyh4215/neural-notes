@@ -29,3 +29,5 @@ target*
 *.env
 libs
 libs/*
+
+!.env.example
