@@ -55,5 +55,10 @@ services:
       - "5173:80"
     # depends_on:
     #   - backend
+
+  embed_api:
+    build: ./fastapi
+    ports:
+      - "8001:8001"
 volumes:
   postgres_data:

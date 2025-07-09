@@ -56,5 +56,17 @@ services:
       - /app/node_modules          # 컨테이너 내부 node_modules 유지
     command: ["npm", "run", "dev", "--", "--host"]   # Vite dev 서버 핫리로드
 
+  embed_api:
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./fastapi:/app
+      - ~/.cache/huggingface:/home/appuser/.cache/huggingface
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HF_HOME=/home/appuser/.cache/huggingface
 volumes:
   postgres_data:
