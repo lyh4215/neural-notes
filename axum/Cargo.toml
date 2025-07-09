@@ -13,6 +13,7 @@ uuid = { version = "1", features = ["v4"] }
 once_cell = "1"
 # DB 관련
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "macros", "uuid", "chrono", "postgres"] }
+pgvector = { version = "0.3", features = ["sqlx", "serde"] }
 
 # react 관련
 tower-http = { version = "0.5", features = ["cors"] }
@@ -34,3 +35,6 @@ colored = "2"
 # cache
 axum-redis-cache = { git = "https://github.com/lyh4215/axum-redis-cache.git", branch = "main"}
 #axum-redis-cache = { path = "../axum-redis-cache"}
+
+#fastapi
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }

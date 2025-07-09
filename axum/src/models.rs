@@ -9,6 +9,7 @@ pub struct Post {
     pub content: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub embedding: Option<pgvector::Vector>,
     pub user_id: i64,
 }
 

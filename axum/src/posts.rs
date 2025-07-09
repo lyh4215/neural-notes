@@ -14,12 +14,15 @@ use crate::{
     auth::UserClaims,
     models::{CreatePost, Post, PostResponse, UpdatePost, User},
 };
-use redis::aio::MultiplexedConnection;
+use redis::{Client, aio::MultiplexedConnection};
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, pool::Pool};
 
 //cache
 use axum_redis_cache::{CacheManager, CacheState};
+
+//embedding
+use pgvector::Vector;
 
 pub fn routes(
     //mut conn: MultiplexedConnection
@@ -90,38 +93,36 @@ pub async fn delete_callback(db: Pool<Postgres>, key: String) {
     }
 }
 
+#[derive(Deserialize)]
+struct EmbedResponse {
+    embedding: Vec<f32>,
+}
+
 async fn create_post(
     State(db): State<Pool<Postgres>>,
     JwtClaims(user): JwtClaims<UserClaims>,
     Json(payload): Json<CreatePost>,
 ) -> Result<Json<Post>, (StatusCode, String)> {
     let mut tx = db.begin().await.map_err(internal_error)?;
-    sqlx::query("INSERT INTO posts (title, content, user_id) VALUES ($1, $2, $3)")
-        .bind(&payload.title)
-        .bind(&payload.content)
-        .bind(&user.sub)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            eprintln!("Error inserting post: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to create post".to_string(),
-            )
-        })?;
-
-    // 최근 삽입된 row의 id 가져오기
-    let last_id: (i64,) = sqlx::query_as("SELECT last_insert_rowid()")
-        .fetch_one(&mut *tx)
-        .await
-        .unwrap();
-
-    // 해당 id로 다시 조회
-    let post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = $1")
-        .bind(last_id.0)
-        .fetch_one(&mut *tx)
-        .await
-        .unwrap();
+    let post = sqlx::query_as::<_, Post>(
+        r#"
+        INSERT INTO posts (title, content, user_id)
+        VALUES ($1, $2, $3)
+        RETURNING *
+        "#,
+    )
+    .bind(&payload.title)
+    .bind(&payload.content)
+    .bind(&user.sub)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|e| {
+        eprintln!("Error inserting post: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create post".to_string(),
+        )
+    })?;
 
     tx.commit().await.map_err(internal_error)?;
 
@@ -230,38 +231,68 @@ pub async fn __update_post_from_cache(
     Json(payload): Json<UpdatePost>,
 ) {
     let mut tx = db.begin().await.map_err(internal_error).unwrap();
-
-    sqlx::query("UPDATE posts SET title = $1, content = $2 WHERE id = $3")
-        .bind(&payload.title)
-        .bind(&payload.content)
-        .bind(id)
-        .execute(&mut *tx)
+    let client = reqwest::Client::new();
+    let embed_resp = client
+        .post("http://embed_api:8001/embed")
+        .json(&serde_json::json!({ "text": payload.content })) //TODO : modify this
+        .send()
         .await
-        .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
         .unwrap();
+
+    let embed_resp: EmbedResponse = embed_resp
+        .json()
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .unwrap();
+
+    // ➋ pgvector Vector로 변환
+    let vector = Vector::from(embed_resp.embedding);
+
+    sqlx::query(
+        r#"
+        UPDATE posts 
+        SET title = $1, content = $2 , embedding = $3
+        WHERE id = $4
+        "#,
+    )
+    .bind(&payload.title)
+    .bind(&payload.content)
+    .bind(vector)
+    .bind(id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))
+    .unwrap();
 
     tx.commit().await.map_err(internal_error).unwrap();
 }
 
 async fn get_related_post(post: &Post, db: &Pool<Postgres>) -> Vec<Post> {
     /* related post 가져오기기 */
-    let all_posts: Vec<Post> =
-        sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE user_id = $1 AND id != $2")
-            .bind(post.user_id)
-            .bind(post.id)
-            .fetch_all(db)
-            .await
-            .map_err(|e| {
-                eprintln!("DB error: {}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to fetch related posts".to_string(),
-                )
-            })
-            .unwrap();
-
-    // 앞 3개만 안전하게 수집
-    let related_posts: Vec<Post> = all_posts.into_iter().take(3).collect();
+    let Some(embedding) = &post.embedding else {
+        return Vec::new();
+    };
+    // 유사도 기반으로 관련 포스트 3개 반환
+    let related_posts = sqlx::query_as::<_, Post>(
+        r#"
+        SELECT * FROM posts
+        WHERE user_id = $1
+        AND id != $2
+        AND embedding IS NOT NULL
+        ORDER BY embedding <-> $3
+        LIMIT 3
+        "#,
+    )
+    .bind(post.user_id)
+    .bind(post.id)
+    .bind(embedding)
+    .fetch_all(db)
+    .await
+    .unwrap_or_else(|e| {
+        eprintln!("DB error during related post fetch: {}", e);
+        Vec::new()
+    });
 
     related_posts
 }
