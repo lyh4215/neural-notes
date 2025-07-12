@@ -3,6 +3,7 @@
 import React, { createContext, useState, useContext, useCallback, useMemo, useRef, useEffect } from 'react';
 import api from '../api';
 import useTreeBuilder from '../hooks/useTreeBuilder';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const NotesContext = createContext();
@@ -10,6 +11,7 @@ const API_URL = "http://localhost:3000/posts";
 
 export const NotesProvider = ({ children, editor }) => {
   const { isLoggedIn, handleLogout } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [postId, setPostId] = useState("");
   const [title, setTitle] = useState("");
@@ -84,27 +86,35 @@ export const NotesProvider = ({ children, editor }) => {
   }, [postId, title, editor]);
 
   const loadNode = useCallback((node) => {
-    if (!node.postId || !editor) return;
+    console.log('loadNode called with node:', node);
+    if (!node.postId || !editor) {
+      console.log('loadNode: Missing postId or editor.');
+      return;
+    }
     autoSaveIfNeeded(async () => {
       setIsLoadingPost(true);
       try {
+        console.log('Fetching post:', node.postId);
         const res = await api.get(`${API_URL}/${node.postId}`);
         const p = res.data;
         isSilentUpdate.current = true;
         setPostId(p.id.toString());
         setTitle(p.title);
         lastTitleRef.current = p.title;
+        console.log('Setting editor content to:', p.content);
         editor.commands.setContent(p.content || '');
         lastContentRef.current = p.content || '';
         setRelatedPosts(p.related_posts.slice(0, 3));
         logMsg(`📄 단일 조회 완료: ${p.title}`);
+        navigate(`/posts/${p.id}`);
       } catch (e) {
         logMsg(`❌ GET 실패: ${e.message}`);
+        console.error('GET failed:', e);
       } finally {
         setTimeout(() => { isSilentUpdate.current = false; setIsLoadingPost(false); }, 100);
       }
     });
-  }, [autoSaveIfNeeded, editor]);
+  }, [autoSaveIfNeeded, editor, navigate]);
 
   const handleNew = useCallback(() => {
     if (!editor) return;
@@ -121,6 +131,7 @@ export const NotesProvider = ({ children, editor }) => {
         setPosts(p => [...p, res.data]);
         logMsg(`✅ 새 노트 생성 완료: ID ${res.data.id}`);
         loadNode({ postId: res.data.id });
+        navigate(`/posts/${res.data.id}`);
       } catch (e) {
         logMsg(`❌ 새 노트 생성 실패: ${e.message}`);
       }
@@ -140,6 +151,7 @@ export const NotesProvider = ({ children, editor }) => {
         setRelatedPosts([]);
         lastTitleRef.current = "";
         lastContentRef.current = "";
+        navigate(`/`);
       }
     } catch (e) {
       logMsg(`❌ DELETE 실패: ${e.message}`);

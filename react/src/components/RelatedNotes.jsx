@@ -1,8 +1,10 @@
 // src/components/RelatedNotes.jsx
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import formatTime from '../utils/formatTime';
 
-export default function RelatedNotes({ relatedPosts, loadNode }) {
+export default function RelatedNotes({ relatedPosts }) {
+  const navigate = useNavigate();
   return (
     <div style={{ marginTop: 20 }}>
       <h3 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>관련 노트</h3>
@@ -13,7 +15,7 @@ export default function RelatedNotes({ relatedPosts, loadNode }) {
               background: '#2e2e2e', padding: 12, borderRadius: 4, cursor: 'pointer',
               display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'
             }}
-            onClick={() => loadNode({ postId: rp.id })}
+            onClick={() => navigate(`/posts/${rp.id}`)}
           >
             <div style={{
               color: '#fff', fontWeight: 'bold', marginBottom: 4,

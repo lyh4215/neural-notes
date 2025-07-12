@@ -1,21 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotes } from '../contexts/NotesContext';
 import { useUI } from '../contexts/UIContext';
 import Sidebar from './Sidebar';
 import MainPanel from './MainPanel';
 import LoginModal from './LoginModal';
 import SignupModal from './SignupModal';
 
-
-
-import { useNotes } from '../contexts/NotesContext';
-
 export default function Layout({ editor }) {
   const { 
-    isLoggedIn, handleLogin, handleSignup, 
-    loginError, setLoginError, signupError, setSignupError, 
-    signupSuccess, setSignupSuccess 
+    handleLogin, handleSignup, 
+    loginError, signupError, signupSuccess 
   } = useAuth();
   
   const { 
@@ -24,7 +21,13 @@ export default function Layout({ editor }) {
     isSidebarHidden, handleMouseDown 
   } = useUI();
 
-  const { log, isSaving } = useNotes();
+  const { 
+    loadNode, setPostId, setTitle, setRelatedPosts, 
+    isSilentUpdate, log, isSaving 
+  } = useNotes();
+
+  const { id } = useParams();
+  const location = useLocation();
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -49,6 +52,31 @@ export default function Layout({ editor }) {
       setSignupPassword('');
     }
   };
+
+  // URL 변경 감지 및 노트 로드/초기화
+  useEffect(() => {
+    console.log('Layout useEffect triggered. id:', id, 'editor:', editor);
+    if (!editor) {
+      console.log('Editor not ready in Layout useEffect.');
+      return; // editor가 준비되지 않았으면 아무것도 하지 않음
+    }
+
+    if (id) {
+      console.log('Loading note with ID:', id);
+      if (!isSilentUpdate.current) {
+        loadNode({ postId: id });
+      } else {
+        console.log('isSilentUpdate is true, skipping loadNode.');
+      }
+    } else {
+      console.log('No ID in URL, resetting editor.');
+      // URL이 '/'일 때 상태 초기화
+      setPostId("");
+      setTitle("");
+      editor.commands.setContent('<p>✍️ 여기서 글을 작성하세요</p>');
+      setRelatedPosts([]);
+    }
+  }, [id, editor]); // id가 바뀔 때마다 실행
 
   return (
     <div style={{
