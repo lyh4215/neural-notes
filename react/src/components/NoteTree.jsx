@@ -2,9 +2,13 @@
 import React from 'react';
 import formatTime from '../utils/formatTime';
 
-export default function NoteTree({
-  treeData, expanded, toggleExpand, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor
-}) {
+import { useState } from 'react';
+
+export default function NoteTree({  treeData, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor}) {
+  const [expanded, setExpanded] = useState({});
+  const toggleExpand = (path) => {
+    setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
+  };
   const renderTree = (nodes, parentPath = '', depth = 0) =>
     nodes.map(node => {
       const path = parentPath ? `${parentPath}/${node.name}` : node.name;
