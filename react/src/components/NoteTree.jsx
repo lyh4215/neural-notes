@@ -3,11 +3,22 @@ import React from 'react';
 import formatTime from '../utils/formatTime';
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-export default function NoteTree({  treeData, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor}) {
+export default function NoteTree({
+  treeData, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor
+}) {
   const [expanded, setExpanded] = useState({});
+  const navigate = useNavigate();
+
   const toggleExpand = (path) => {
     setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const handleNodeClick = (node) => {
+    if (node.postId) {
+      navigate(`/posts/${node.postId}`);
+    }
   };
   const renderTree = (nodes, parentPath = '', depth = 0) =>
     nodes.map(node => {
@@ -31,7 +42,7 @@ export default function NoteTree({  treeData, loadNode, handleDelete, isLoggedIn
               </span>
             )}
             <span
-              onClick={() => loadNode(node)}
+              onClick={() => handleNodeClick(node)}
               style={{ color: '#fff', cursor: node.postId ? 'pointer' : 'default', paddingLeft: hasChildren ? 4 : 24 }}
             >
               {node.name}
