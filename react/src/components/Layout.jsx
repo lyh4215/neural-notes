@@ -7,6 +7,10 @@ import MainPanel from './MainPanel';
 import LoginModal from './LoginModal';
 import SignupModal from './SignupModal';
 
+
+
+import { useNotes } from '../contexts/NotesContext';
+
 export default function Layout({ editor }) {
   const { 
     isLoggedIn, handleLogin, handleSignup, 
@@ -19,6 +23,8 @@ export default function Layout({ editor }) {
     isSignupModalOpen, setIsSignupModalOpen, 
     isSidebarHidden, handleMouseDown 
   } = useUI();
+
+  const { log, isSaving } = useNotes();
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -68,6 +74,25 @@ export default function Layout({ editor }) {
 
       <MainPanel editor={editor} />
 
+      <pre style={{
+        position: 'fixed',
+        opacity: 0.8,
+        top: 20,
+        right: 20,
+        width: 350,
+        height: 200,
+        background: 'rgba(0, 0, 0, 0.7)',
+        color: '#0f0',
+        padding: 10,
+        overflowY: 'auto',
+        borderRadius: 8,
+        zIndex: 2000,
+        fontSize: 12,
+        border: '1px solid #444',
+        backdropFilter: 'blur(5px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+      }}>{isSaving ? "⏳ 자동저장 중...\n" : ""}{log}</pre>
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -90,5 +115,7 @@ export default function Layout({ editor }) {
         success={signupSuccess}
       />
     </div>
+
+
   );
 }

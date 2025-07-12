@@ -57,10 +57,7 @@ export default function Sidebar() {
           setShowDeleteFor={setShowDeleteFor}
         />
       </div>
-      <pre style={{
-        background: "#111", color: "#0f0", padding: 10,
-        marginTop: 10, height: 150, overflowY: "auto", borderRadius: 4
-      }}>{isSaving ? "⏳ 자동저장 중...\n" : ""}{log}</pre>
+      
       <button
         onClick={() => setIsSidebarHidden(true)}
         style={{
