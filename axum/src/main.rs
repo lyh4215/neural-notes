@@ -8,6 +8,8 @@ use axum::{
 use sqlx::{Postgres, pool::Pool};
 use tower_http::cors::CorsLayer;
 
+use tokio_util::sync::CancellationToken;
+
 //auth
 use axum::routing::{delete, get, post, put};
 use jwt_authorizer::{
@@ -50,7 +52,7 @@ async fn main() {
                 .expect("REDIS_URL must be set")
                 .as_str(),
         )
-        .with_write_duration(5);
+        .with_write_duration(10);
 
     let cache_connection =
         axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
@@ -64,7 +66,7 @@ async fn main() {
     );
 
     let protected_routes = Router::new()
-        .merge(posts::routes(cache_manager))
+        .merge(posts::routes(cache_manager.get_state()))
         .merge(routes::routes())
         // adding the authorizer layer
         .layer(auth.into_layer());
@@ -81,5 +83,16 @@ async fn main() {
         .with_state(db);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("failed to listen for ctrl_c");
+            println!("🔴 Ctrl+C received. Cancelling...");
+        })
+        .await
+        .unwrap();
+
+    cache_manager.shutdown().await;
 }
