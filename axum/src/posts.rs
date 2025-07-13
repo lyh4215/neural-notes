@@ -26,13 +26,12 @@ use pgvector::Vector;
 
 pub fn routes(
     //mut conn: MultiplexedConnection
-    cache_manager: CacheManager,
+    cache_state: CacheState,
 ) -> Router<Pool<Postgres>> {
-    let stat = cache_manager.get_state();
     Router::new()
         .merge(post_routes_auth())
         .merge(post_routes_cache().layer(middleware::from_fn_with_state(
-            stat.clone(),
+            cache_state,
             axum_redis_cache::middleware,
         )))
 }
