@@ -79,23 +79,16 @@ async fn create_account(
         )
     })?;
 
-    sqlx::query("INSERT INTO users (username, password) VALUES ($1, $2)")
-        .bind(&payload.username)
-        .bind(&hashed_password)
-        .execute(&mut *tx)
-        .await
-        .map_err(internal_error)?;
-
-    let last_id: (i64,) = sqlx::query_as("SELECT last_insert_rowid()")
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(internal_error)?;
-
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
-        .bind(last_id.0)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(internal_error)?;
+    let user = sqlx::query_as::<_, User>(
+        "INSERT INTO users (username, password)
+         VALUES ($1, $2)
+         RETURNING *",
+    )
+    .bind(&payload.username)
+    .bind(&hashed_password)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
 
     tx.commit().await.map_err(internal_error)?;
 

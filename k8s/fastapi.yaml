@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: embed-api
+spec:
+  selector:
+    app: embed-api
+  ports:
+    - port: 8001
+      targetPort: 8001
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embed-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embed-api
+  template:
+    metadata:
+      labels:
+        app: embed-api
+    spec:
+      containers:
+        - name: embed-api
+          image: neural-notes-fastapi:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8001
