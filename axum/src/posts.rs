@@ -231,8 +231,10 @@ pub async fn __update_post_from_cache(
 ) {
     let mut tx = db.begin().await.map_err(internal_error).unwrap();
     let client = reqwest::Client::new();
+    let embed_api_url =
+        std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
     let embed_resp = client
-        .post("http://embed_api:8001/embed")
+        .post(format!("{}/embed", embed_api_url))
         .json(&serde_json::json!({ "text": payload.content })) //TODO : modify this
         .send()
         .await
