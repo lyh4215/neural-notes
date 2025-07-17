@@ -1,0 +1,12 @@
+# kind.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 5173 # container 내부
+        hostPort: 5173      # 로컬에서 접근할 포트
+        protocol: TCP
+      - containerPort: 3000 # container 내부
+        hostPort: 3000      # 로컬에서 접근할 포트
+        protocol: TCP

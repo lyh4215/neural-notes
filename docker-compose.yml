@@ -44,8 +44,6 @@ services:
     #   REDIS_URL: redis://redis:6379
     env_file:
       - axum/.env
-    volumes:
-      - ./axum/posts.db:/app/posts.db
 
   frontend:
     build:

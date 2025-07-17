@@ -1,3 +1,6 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==2.2.0+cpu
+numpy<2.0
+sentence-transformers
 fastapi
 uvicorn
-sentence-transformers

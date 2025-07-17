@@ -26,4 +26,5 @@ async def embed_text(request: TextRequest):
         embedding = model.encode(request.text).tolist()
         return EmbeddingResponse(embedding=embedding)
     except Exception as e:
+        print(f"Error generating embedding: {e}")
         raise HTTPException(status_code=500, detail=str(e))
