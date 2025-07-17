@@ -47,3 +47,5 @@ spec:
               value: "password"
             - name: DATABASE_NAME
               value: "neural_notes"
+            - name: EMBED_API_URL
+              value: "http://embed-api:8001"

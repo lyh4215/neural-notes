@@ -77,11 +77,11 @@ deploy:
 
 [group: 'k8s']
 undeploy:
-    kubectl delete -f k8s/react.yaml
-    kubectl delete -f k8s/fastapi.yaml
-    kubectl delete -f k8s/axum.yaml
-    kubectl delete -f k8s/postgres.yaml
-    kubectl delete -f k8s/redis.yaml
+    -kubectl delete -f k8s/react.yaml
+    -kubectl delete -f k8s/fastapi.yaml
+    -kubectl delete -f k8s/axum.yaml
+    -kubectl delete -f k8s/postgres.yaml
+    -kubectl delete -f k8s/redis.yaml
 
 # =========================
 # 🐳 Docker Compose
