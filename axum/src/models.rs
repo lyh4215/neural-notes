@@ -13,6 +13,13 @@ pub struct Post {
     pub user_id: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct PostGraphData {
+    pub id: i64,
+    pub title: String,
+    pub embedding: Option<pgvector::Vector>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreatePost {
     pub title: String,
@@ -67,4 +74,23 @@ pub struct CreateComment {
     pub content: String,
     pub post_id: i64,
     pub user_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphNode {
+    pub id: String,   // Post ID as string
+    pub name: String, // Post title
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphLink {
+    pub source: String, // Source Post ID as string
+    pub target: String, // Target Post ID as string
+    pub value: f32,     // Similarity score
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphData {
+    pub nodes: Vec<GraphNode>,
+    pub links: Vec<GraphLink>,
 }

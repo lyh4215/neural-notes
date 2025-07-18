@@ -1,26 +1,44 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNotes } from '../contexts/NotesContext';
 import { useUI } from '../contexts/UIContext';
 import EditorPanel from './EditorPanel';
 import RelatedNotes from './RelatedNotes';
+import GraphView from './GraphView';
 
 export default function MainPanel({ editor }) {
   const { postId, title, onTitleChange, relatedPosts, loadNode } = useNotes();
   const { isSidebarHidden, setIsSidebarHidden } = useUI();
+  const [showGraph, setShowGraph] = useState(false);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      <EditorPanel
-        editor={editor}
-        postId={postId}
-        title={title}
-        onTitleChange={onTitleChange}
-      />
-      <RelatedNotes
-        relatedPosts={relatedPosts}
-        loadNode={loadNode}
-      />
+      <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button onClick={() => setShowGraph(false)} style={{ padding: '4px 12px', borderRadius: 6 }}>
+          에디터 뷰
+        </button>
+        <button onClick={() => setShowGraph(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>
+          그래프 뷰
+        </button>
+      </div>
+
+      {showGraph ? (
+        <GraphView />
+      ) : (
+        <>
+          <EditorPanel
+            editor={editor}
+            postId={postId}
+            title={title}
+            onTitleChange={onTitleChange}
+          />
+          <RelatedNotes
+            relatedPosts={relatedPosts}
+            loadNode={loadNode}
+          />
+        </>
+      )}
+
       {isSidebarHidden &&
         <button
           onClick={() => setIsSidebarHidden(false)}

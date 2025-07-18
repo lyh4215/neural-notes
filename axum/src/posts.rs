@@ -12,7 +12,7 @@ use jwt_authorizer::JwtClaims;
 
 use crate::{
     auth::UserClaims,
-    models::{CreatePost, Post, PostResponse, UpdatePost, User},
+    models::{CreatePost, Post, PostGraphData, PostResponse, UpdatePost, User},
 };
 use redis::{Client, aio::MultiplexedConnection};
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,9 @@ use axum_redis_cache::{CacheManager, CacheState};
 
 //embedding
 use pgvector::Vector;
+
+//graph
+use crate::models::{GraphData, GraphLink, GraphNode};
 
 pub fn routes(
     //mut conn: MultiplexedConnection
@@ -37,7 +40,9 @@ pub fn routes(
 }
 
 fn post_routes_auth() -> Router<Pool<Postgres>> {
-    Router::new().route("/posts", get(list_posts).post(create_post))
+    Router::new()
+        .route("/posts", get(list_posts).post(create_post))
+        .route("/posts/graph", get(get_graph_data))
 }
 
 fn post_routes_cache() -> Router<Pool<Postgres>> {
@@ -300,4 +305,63 @@ async fn get_related_post(post: &Post, db: &Pool<Postgres>) -> Vec<Post> {
 
 fn internal_error<E: std::fmt::Display>(e: E) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, format!("에러: {}", e))
+}
+
+async fn get_graph_data(
+    State(db): State<Pool<Postgres>>,
+    JwtClaims(user): JwtClaims<UserClaims>,
+) -> Result<Json<GraphData>, (StatusCode, String)> {
+    let posts = sqlx::query_as::<_, PostGraphData>(
+        "SELECT id, title, embedding FROM posts WHERE user_id = $1 AND embedding IS NOT NULL",
+    )
+    .bind(user.sub)
+    .fetch_all(&db)
+    .await
+    .map_err(internal_error)?;
+
+    let mut nodes: Vec<GraphNode> = Vec::new();
+    let mut links: Vec<GraphLink> = Vec::new();
+
+    for post in &posts {
+        nodes.push(GraphNode {
+            id: post.id.to_string(),
+            name: post.title.clone(),
+        });
+    }
+
+    // Calculate similarities and create links
+    for i in 0..posts.len() {
+        for j in (i + 1)..posts.len() {
+            let p1 = &posts[i];
+            let p2 = &posts[j];
+
+            if let (Some(e1), Some(e2)) = (&p1.embedding, &p2.embedding) {
+                // Calculate cosine distance (pgvector uses <-> for cosine distance)
+                println!("Calculating distance between post {} and {}", p1.id, p2.id);
+                let distance = sqlx::query_scalar::<_, f64>("SELECT $1 <-> $2")
+                    .bind(e1)
+                    .bind(e2)
+                    .fetch_one(&db)
+                    .await
+                    .map_err(|e| {
+                        eprintln!("Error calculating distance: {}", e);
+                        internal_error(e)
+                    })?;
+                println!("Distance: {}", distance);
+
+                // Only add link if similarity is above a certain threshold
+                // Cosine distance ranges from 0 to 2. 0 means identical, 2 means opposite.
+                // A distance of < 0.2 means similarity > 0.8 (since similarity = 1 - distance/2)
+                if distance < 0.5 {
+                    links.push(GraphLink {
+                        source: p1.id.to_string(),
+                        target: p2.id.to_string(),
+                        value: (1.0 - (distance / 2.0)) as f32, // Convert distance to similarity (0 to 1)
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(Json(GraphData { nodes, links }))
 }
