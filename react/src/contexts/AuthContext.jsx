@@ -4,8 +4,7 @@ import api from '../api';
 
 const AuthContext = createContext();
 
-const LOGIN_URL = "http://localhost:3000/login";
-const SIGNUP_URL = "http://localhost:3000/accounts";
+
 
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('accessToken'));
@@ -17,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const handleLogin = async (username, password) => {
     setLoginError('');
     try {
-      const res = await api.post(LOGIN_URL, { username, password });
+      const res = await api.post("/login", { username, password });
       const { access_token } = res.data;
       if (access_token) {
         localStorage.setItem('accessToken', access_token);
@@ -39,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     setSignupError('');
     setSignupSuccess('');
     try {
-      await api.post(SIGNUP_URL, { username, password });
+      await api.post("/accounts", { username, password });
       setSignupSuccess('🎉 회원가입 성공! 이제 로그인하세요.');
       return true;
     } catch (e) {

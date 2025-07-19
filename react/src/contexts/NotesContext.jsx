@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const NotesContext = createContext();
-const API_URL = "http://localhost:3000/posts";
+
 
 export const NotesProvider = ({ children, editor }) => {
   const { isLoggedIn, handleLogout } = useAuth();
@@ -38,7 +38,7 @@ export const NotesProvider = ({ children, editor }) => {
   const handleListLoad = useCallback(async () => {
     if (!isLoggedIn) return;
     try {
-      const res = await api.get(API_URL);
+      const res = await api.get("/posts");
       setPosts(res.data);
       logMsg(`📋 리스트 로드 완료, 총 ${res.data.length}개 글`);
     } catch (e) {
@@ -69,7 +69,7 @@ export const NotesProvider = ({ children, editor }) => {
     if (curTitle !== lastTitleRef.current || curContent !== lastContentRef.current) {
       setIsSaving(true);
       try {
-        const res = await api.put(`${API_URL}/${postId}`, { title: curTitle || "제목 없음", content: curContent });
+        const res = await api.put(`/posts/${postId}`, { title: curTitle || "제목 없음", content: curContent });
         setPosts(p => p.map(p => p.id === Number(postId) ? res.data : p));
         logMsg(`💾 자동저장 완료 (id: ${postId})`);
         lastTitleRef.current = curTitle;
@@ -95,7 +95,7 @@ export const NotesProvider = ({ children, editor }) => {
       setIsLoadingPost(true);
       try {
         console.log('Fetching post:', node.postId);
-        const res = await api.get(`${API_URL}/${node.postId}`);
+        const res = await api.get(`/posts/${node.postId}`);
         const p = res.data;
         isSilentUpdate.current = true;
         setPostId(p.id.toString());
@@ -127,7 +127,7 @@ export const NotesProvider = ({ children, editor }) => {
       lastContentRef.current = "";
 
       try {
-        const res = await api.post(API_URL, { title: "제목 없음", content: "" });
+        const res = await api.post("/posts", { title: "제목 없음", content: "" });
         setPosts(p => [...p, res.data]);
         logMsg(`✅ 새 노트 생성 완료: ID ${res.data.id}`);
         loadNode({ postId: res.data.id });
@@ -141,7 +141,7 @@ export const NotesProvider = ({ children, editor }) => {
   const handleDelete = async (delPostId) => {
     if (!delPostId) return;
     try {
-      await api.delete(`${API_URL}/${delPostId}`);
+      await api.delete(`/posts/${delPostId}`);
       logMsg(`🗑️ 삭제 완료 (id: ${delPostId})`);
       setPosts(p => p.filter(p => p.id !== Number(delPostId)));
       if (postId === String(delPostId)) {
@@ -166,7 +166,7 @@ export const NotesProvider = ({ children, editor }) => {
       if (postId && editor) {
         setIsSaving(true);
         try {
-          const res = await api.put(`${API_URL}/${postId}`, { title: titleValue || "제목 없음", content: contentValue });
+          const res = await api.put(`/posts/${postId}`, { title: titleValue || "제목 없음", content: contentValue });
           setPosts(p => p.map(p => p.id === Number(postId) ? res.data : p));
           logMsg(`💾 자동저장 완료 (id: ${postId})`);
           lastTitleRef.current = titleValue;
