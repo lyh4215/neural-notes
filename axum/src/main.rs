@@ -46,16 +46,14 @@ async fn main() {
     let db = init_db().await;
     let auth = auth::init_auth().await;
     //let cache_connection = axum_redis_cache::CacheConnection::new(db.clone()).await;
-    let cacheconfig = axum_redis_cache::CacheConfig::new()
-        .with_url(
-            std::env::var("REDIS_URL")
-                .expect("REDIS_URL must be set")
-                .as_str(),
-        )
-        .with_write_duration(10);
+    let cacheconnconfig = axum_redis_cache::CacheConnConfig::new().with_url(
+        std::env::var("REDIS_URL")
+            .expect("REDIS_URL must be set")
+            .as_str(),
+    );
 
     let cache_connection =
-        axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconfig).await;
+        axum_redis_cache::CacheConnection::new_with_config(db.clone(), cacheconnconfig).await;
 
     let key = String::from("posts");
     let cache_manager = cache_connection.get_manager(

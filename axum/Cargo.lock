@@ -162,7 +162,7 @@ dependencies = [
 [[package]]
 name = "axum-redis-cache"
 version = "0.1.0"
-source = "git+https://github.com/lyh4215/axum-redis-cache.git?branch=main#33ab1b898ebc5ed2e4a062779e1f3f73d9ff37a7"
+source = "git+https://github.com/lyh4215/axum-redis-cache.git?branch=main#a39dc4e1392a772d0c8851da4e52098c6085db21"
 dependencies = [
  "axum",
  "bytes",

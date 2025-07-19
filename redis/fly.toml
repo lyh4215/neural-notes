@@ -1,0 +1,30 @@
+# fly.toml app configuration file generated for neural-notes-redis on 2025-07-20T02:14:57+09:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'neural-notes-redis'
+primary_region = 'nrt'
+
+[build]
+
+# Redis는 HTTP가 아닌 TCP로 통신하므로 http_service는 제거하고, 대신 services를 사용
+[[services]]
+  internal_port = 6379
+  protocol = "tcp"
+  auto_stop_machines = false  # 자동 중지 비활성화
+  auto_start_machines = true
+  min_machines_running = 1    # 항상 하나는 실행되도록
+
+  # 외부 포트는 굳이 열 필요 없음 (Fly 앱 내부에서만 사용)
+  [[services.ports]]
+    port = 6379
+    handlers = []  # no HTTP handlers
+
+[mounts]
+  source = "redis_data"
+  destination = "/data"
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = 256

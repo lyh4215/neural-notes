@@ -142,3 +142,10 @@ env:
     cp axum/.env.example axum/.env
     cp react/.env.example react/.env
     cp .env.example .env
+
+# Fly.io 배포 관련 명령
+[group: 'fly']
+fly-deploy-all:
+    cd redis && fly deploy
+    cd fastapi && fly deploy
+    cd axum && fly deploy
