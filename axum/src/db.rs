@@ -24,7 +24,7 @@ pub async fn init_db() -> PgPool {
         .username(&user)
         .password(&password)
         .database(&database)
-        .ssl_mode(PgSslMode::Disable);
+        .ssl_mode(PgSslMode::Require);
 
     let db = loop {
         match PgPoolOptions::new()

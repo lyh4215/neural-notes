@@ -13,7 +13,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 once_cell = "1"
 # DB 관련
-sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "macros", "uuid", "chrono", "postgres"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "macros", "uuid", "chrono", "postgres", "runtime-tokio-rustls", "tls-rustls"] }
 pgvector = { version = "0.3", features = ["sqlx", "serde"] }
 
 # react 관련

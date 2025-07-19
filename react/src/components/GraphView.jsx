@@ -19,7 +19,7 @@ export default function GraphView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get('http://localhost:3000/posts/graph');
+      const response = await api.get('/posts/graph');
       setGraphData(response.data);
     } catch (err) {
       console.error('Failed to fetch graph data:', err);
