@@ -36,8 +36,8 @@ export default function GraphView() {
   useEffect(() => {
     const fg = fgRef.current;
     if (fg && !loading && !error && graphData.nodes.length > 0) {
-      fg.d3Force('charge').strength(-120);
-      fg.d3Force('link').distance(link => 100 * (1 - link.value));
+      fg.d3Force('charge').strength(-200);
+      fg.d3Force('link').distance(link => 150 * (1 - link.value));
 
       const timer = setTimeout(() => {
         fg.zoomToFit(400);
@@ -58,8 +58,15 @@ export default function GraphView() {
   if (graphData.nodes.length === 0) return <div style={{ color: '#fff' }}>표시할 노트가 없습니다.</div>;
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#1a1a1a', borderRadius: 8, overflow: 'hidden' }}>
-      <h2 style={{ color: '#fff', margin: 0, padding: 10, textAlign: 'center' }}>유사 노트 그래프</h2>
+    <div style={{
+      flex: 1, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      borderRadius: 8, 
+      overflow: 'hidden',
+      backgroundColor: '#1a1a1a'
+    }}>
+      <h2 style={{ color: '#fff', margin: 0, padding: 10, textAlign: 'center', background: '#1a1a1a' }}>유사 노트 그래프</h2>
       <ForceGraph2D
         ref={fgRef}
         graphData={graphData}
@@ -68,30 +75,87 @@ export default function GraphView() {
         linkSource="source"
         linkTarget="target"
         linkWidth={link => link.value * 5} // 유사도에 따라 링크 두께 조절
-        linkDirectionalArrowLength={3} // 링크 방향 화살표 길이
-        linkDirectionalArrowRelPos={1} // 링크 방향 화살표 위치
+        onBackgroundPaint={(ctx) => {
+          if (!fgRef.current) return;
+
+          const gridSize = 40;
+          const gridColor = '#2c2c2c';
+          const transform = fgRef.current.getTransform();
+
+          // Get the visible area in graph coordinates
+          const topLeft = fgRef.current.screen2GraphCoords(0, 0);
+          const bottomRight = fgRef.current.screen2GraphCoords(ctx.canvas.width, ctx.canvas.height);
+
+          ctx.strokeStyle = gridColor;
+          ctx.lineWidth = 1 / transform.k; // Keep line width consistent regardless of zoom
+
+          // Draw vertical lines
+          for (let x = Math.floor(topLeft.x / gridSize) * gridSize; x < bottomRight.x; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, topLeft.y);
+            ctx.lineTo(x, bottomRight.y);
+            ctx.stroke();
+          }
+
+          // Draw horizontal lines
+          for (let y = Math.floor(topLeft.y / gridSize) * gridSize; y < bottomRight.y; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(topLeft.x, y);
+            ctx.lineTo(bottomRight.x, y);
+            ctx.stroke();
+          }
+        }}
         nodeAutoColorBy="name" // 노드 색상을 이름에 따라 자동 지정
         nodeCanvasObject={(node, ctx, globalScale) => {
-          const label = node.name;
-          const fontSize = 12 / globalScale;
-          ctx.font = `${fontSize}px Sans-Serif`;
-          const textWidth = ctx.measureText(label).width;
-          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+          const FIXED_NODE_WIDTH = 80;
+          const FIXED_NODE_HEIGHT = 24;
+          const FIXED_FONT_SIZE = 14;
+          const FIXED_CORNER_RADIUS = 4;
 
-          ctx.fillStyle = '#333'; // 노드 배경색
-          ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+          const nodeWidth = FIXED_NODE_WIDTH / globalScale;
+          const nodeHeight = FIXED_NODE_HEIGHT / globalScale;
+          const cornerRadius = FIXED_CORNER_RADIUS / globalScale;
+          const fontSize = FIXED_FONT_SIZE / globalScale;
 
+          // Truncate text
+          let label = node.name;
+          ctx.font = `600 ${fontSize}px Sans-Serif`;
+          let textWidth = ctx.measureText(label).width;
+          // Use FIXED_NODE_WIDTH for truncation logic
+          while (textWidth > FIXED_NODE_WIDTH - 10 && label.length > 1) {
+            label = label.slice(0, -1);
+            textWidth = ctx.measureText(label + '...').width;
+          }
+          if (label !== node.name) {
+            label += '...';
+          }
+
+          // Draw rounded rectangle
+          ctx.beginPath();
+          ctx.moveTo(node.x - nodeWidth / 2 + cornerRadius, node.y - nodeHeight / 2);
+          ctx.arcTo(node.x + nodeWidth / 2, node.y - nodeHeight / 2, node.x + nodeWidth / 2, node.y + nodeHeight / 2, cornerRadius);
+          ctx.arcTo(node.x + nodeWidth / 2, node.y + nodeHeight / 2, node.x - nodeWidth / 2, node.y + nodeHeight / 2, cornerRadius);
+          ctx.arcTo(node.x - nodeWidth / 2, node.y + nodeHeight / 2, node.x - nodeWidth / 2, node.y - nodeHeight / 2, cornerRadius);
+          ctx.arcTo(node.x - nodeWidth / 2, node.y - nodeHeight / 2, node.x + nodeWidth / 2, node.y - nodeHeight / 2, cornerRadius);
+          ctx.closePath();
+
+          // Style and fill
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fill();
+
+          // Text
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff'; // 노드 텍스트 색상
+          ctx.fillStyle = '#fff';
           ctx.fillText(label, node.x, node.y);
 
-          node.__bckgDimensions = bckgDimensions; // for hit testing
+          node.__bckgDimensions = [nodeWidth, nodeHeight];
         }}
         nodePointerAreaPaint={(node, color, ctx) => {
+          if (!node.__bckgDimensions) return;
+          const [width, height] = node.__bckgDimensions;
           ctx.fillStyle = color;
-          const bckgDimensions = node.__bckgDimensions;
-          bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+          ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
         }}
         onNodeClick={handleNodeClick}
         width={window.innerWidth * 0.6 - 40} // MainPanel의 대략적인 너비에 맞춤
