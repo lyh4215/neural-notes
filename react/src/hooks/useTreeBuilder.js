@@ -6,29 +6,23 @@ export default function useTreeBuilder() {
     const root = [];
     items.forEach(post => {
       const parts = post.title.split('/');
-      let nodeList = root;
-      let path = '';
+      let currentLevel = root;
+      let currentPath = '';
+
       parts.forEach((part, idx) => {
-        path = path ? `${path}/${part}` : part;
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
 
-        let node;
-        if (idx === parts.length - 1) {
-          // 마지막 파트는 name + postId로 구분!
-          node = nodeList.find(n => n.name === part && n.postId === post.id);
-          if (!node) {
+        let node = currentLevel.find(n => n.name === part && (idx === parts.length - 1 ? n.postId === post.id : n.postId === undefined));
+
+        if (!node) {
+          if (idx === parts.length - 1) {
             node = { name: part, children: [], postId: post.id, updatedAt: post.updated_at };
-            nodeList.push(node);
-          }
-        } else {
-          // 중간 폴더는 기존대로 name으로만 구분
-          node = nodeList.find(n => n.name === part && !n.postId);
-          if (!node) {
+          } else {
             node = { name: part, children: [] };
-            nodeList.push(node);
           }
+          currentLevel.push(node);
         }
-
-        nodeList = node.children;
+        currentLevel = node.children;
       });
     });
     return root;

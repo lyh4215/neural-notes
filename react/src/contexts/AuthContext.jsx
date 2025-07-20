@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useCallback } from 'react';
 import api from '../api';
 
 const AuthContext = createContext();
@@ -47,12 +47,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('username');
     setIsLoggedIn(false);
     setLoggedInUsername('');
-  };
+  }, []);
 
   const value = {
     isLoggedIn,
