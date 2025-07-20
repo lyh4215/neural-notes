@@ -18,13 +18,19 @@ pub async fn init_db() -> PgPool {
     let password = std::env::var("DATABASE_PASSWORD").expect("DATABASE_PASSWORD not set");
     let database = std::env::var("DATABASE_NAME").expect("DATABASE_NAME not set");
 
+    let ssl_mode = if cfg!(debug_assertions) {
+        PgSslMode::Disable
+    } else {
+        PgSslMode::Require
+    };
+
     let conn = PgConnectOptions::new()
         .host(&host)
         .port(port)
         .username(&user)
         .password(&password)
         .database(&database)
-        .ssl_mode(PgSslMode::Require);
+        .ssl_mode(ssl_mode);
 
     let db = loop {
         match PgPoolOptions::new()

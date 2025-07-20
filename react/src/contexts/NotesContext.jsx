@@ -17,7 +17,10 @@ export const NotesProvider = ({ children, editor }) => {
   const [title, setTitle] = useState("");
   const [relatedPosts, setRelatedPosts] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [log, setLog] = useState("");
+  
+  const [log, setLog] = useState([]);
+  const logMsg = (msg) => setLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPost, setIsLoadingPost] = useState(false);
 
@@ -26,7 +29,7 @@ export const NotesProvider = ({ children, editor }) => {
   const lastTitleRef = useRef("");
   const isSilentUpdate = useRef(false);
 
-  const logMsg = msg => setLog(prev => `${prev}\n${msg}`);
+  
   const buildTree = useTreeBuilder();
 
   const filteredPosts = useMemo(
@@ -216,8 +219,7 @@ export const NotesProvider = ({ children, editor }) => {
   const value = {
     posts, setPosts, postId, setPostId, title, setTitle, onTitleChange,
     relatedPosts, setRelatedPosts, searchKeyword, setSearchKeyword,
-    log, setLog, logMsg, isSaving, isLoadingPost, treeData,
-    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate
+    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
