@@ -1,21 +1,15 @@
 use axum::{
     Router,
-    extract::{Json, State},
     http::{Request, Response, StatusCode},
-    middleware::{self, Next, from_fn},
+    middleware::{Next, from_fn},
 };
 
 use sqlx::{Postgres, pool::Pool};
 use tower_http::cors::CorsLayer;
 
-use tokio_util::sync::CancellationToken;
-
 //auth
 use axum::routing::{delete, get, post, put};
-use jwt_authorizer::{
-    AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
-    error::InitError,
-};
+use jwt_authorizer::IntoLayer;
 use serde::{Deserialize, Serialize};
 mod auth;
 use auth::login;

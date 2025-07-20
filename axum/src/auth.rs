@@ -1,6 +1,6 @@
 use axum::{
     extract::{Json, State},
-    http::{Request, Response, StatusCode},
+    http::StatusCode,
 };
 use bcrypt::verify;
 use jsonwebtoken::{EncodingKey, Header, encode};
@@ -17,10 +17,7 @@ struct TokenClaims {
     exp: usize,
 }
 
-use jwt_authorizer::{
-    AuthError, Authorizer, IntoLayer, JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy,
-    error::InitError,
-};
+use jwt_authorizer::{Authorizer, JwtAuthorizer};
 
 //for auth
 /// Object representing claims
