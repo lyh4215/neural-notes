@@ -348,7 +348,10 @@ async fn get_graph_data(
     JwtClaims(user): JwtClaims<UserClaims>,
 ) -> Result<Json<GraphData>, (StatusCode, String)> {
     let posts = sqlx::query_as::<_, PostGraphData>(
-        "SELECT id, title, embedding FROM posts WHERE user_id = $1 AND embedding IS NOT NULL",
+        r#"SELECT id, title, embedding
+            FROM posts
+            WHERE user_id = $1
+            AND embedding IS NOT NULL"#,
     )
     .bind(user.sub)
     .fetch_all(&db)
