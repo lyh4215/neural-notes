@@ -30,7 +30,7 @@ export const NotesProvider = ({ children, editor }) => {
   const buildTree = useTreeBuilder();
 
   const filteredPosts = useMemo(
-    () => posts.filter(p => p.title.toLowerCase().includes(searchKeyword.toLowerCase())),
+    () => (Array.isArray(posts) ? posts.filter(p => p.title.toLowerCase().includes(searchKeyword.toLowerCase())) : []),
     [posts, searchKeyword]
   );
   const treeData = useMemo(() => buildTree(filteredPosts), [filteredPosts, buildTree]);
@@ -70,7 +70,7 @@ export const NotesProvider = ({ children, editor }) => {
       setIsSaving(true);
       try {
         const res = await api.put(`/posts/${postId}`, { title: curTitle || "제목 없음", content: curContent });
-        setPosts(p => p.map(p => p.id === Number(postId) ? res.data : p));
+        setPosts(posts => Array.isArray(posts) ? posts.map(p => p.id === Number(postId) ? res.data : p) : [res.data]);
         logMsg(`💾 자동저장 완료 (id: ${postId})`);
         lastTitleRef.current = curTitle;
         lastContentRef.current = curContent;
@@ -118,25 +118,42 @@ export const NotesProvider = ({ children, editor }) => {
 
   const handleNew = useCallback(() => {
     if (!editor) return;
+  
     autoSaveIfNeeded(async () => {
-      setPostId("");
-      setTitle("");
-      editor.commands.setContent('<p>✍️ 여기서 글을 작성하세요</p>');
-      setRelatedPosts([]);
-      lastTitleRef.current = "";
-      lastContentRef.current = "";
-
+      isSilentUpdate.current = true; // 자동 저장 비활성화
+  
       try {
+        // 1. 새 노트 생성 요청
         const res = await api.post("/posts", { title: "제목 없음", content: "" });
-        setPosts(p => [...p, res.data]);
-        logMsg(`✅ 새 노트 생성 완료: ID ${res.data.id}`);
-        loadNode({ postId: res.data.id });
-        navigate(`/posts/${res.data.id}`);
+        const newPost = res.data;
+        logMsg(`✅ 새 노트 생성 완료: ID ${newPost.id}`);
+  
+        // 2. 전체 포스트 목록에 새 노트 추가
+        setPosts(prevPosts => [...prevPosts, newPost]);
+  
+        // 3. UI 상태를 새 노트 기준으로 즉시 업데이트
+        setPostId(newPost.id.toString());
+        setTitle(newPost.title);
+        editor.commands.setContent(newPost.content || '<p>✍️ 여기서 글을 작성하세요</p>');
+        setRelatedPosts([]);
+  
+        // 4. 마지막 저장 상태를 새 노트 기준으로 업데이트
+        lastTitleRef.current = newPost.title;
+        lastContentRef.current = newPost.content || '';
+  
+        // 5. URL 변경
+        navigate(`/posts/${newPost.id}`);
+  
       } catch (e) {
         logMsg(`❌ 새 노트 생성 실패: ${e.message}`);
+      } finally {
+        // 6. 짧은 지연 후 자동 저장 다시 활성화
+        setTimeout(() => {
+          isSilentUpdate.current = false;
+        }, 100);
       }
     });
-  }, [autoSaveIfNeeded, editor, loadNode]);
+  }, [autoSaveIfNeeded, editor, navigate]);
 
   const handleDelete = async (delPostId) => {
     if (!delPostId) return;
@@ -167,7 +184,7 @@ export const NotesProvider = ({ children, editor }) => {
         setIsSaving(true);
         try {
           const res = await api.put(`/posts/${postId}`, { title: titleValue || "제목 없음", content: contentValue });
-          setPosts(p => p.map(p => p.id === Number(postId) ? res.data : p));
+          setPosts(posts => Array.isArray(posts) ? posts.map(p => p.id === Number(postId) ? res.data : p) : [res.data]);
           logMsg(`💾 자동저장 완료 (id: ${postId})`);
           lastTitleRef.current = titleValue;
           lastContentRef.current = contentValue;
