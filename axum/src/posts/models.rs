@@ -62,3 +62,8 @@ pub struct GraphData {
     pub nodes: Vec<GraphNode>,
     pub links: Vec<GraphLink>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmbedResponse {
+    pub embedding: Vec<f32>,
+}

@@ -10,7 +10,8 @@ pub use handlers::{
     __update_post_from_cache, create_post, delete_post, get_posts, list_posts, update_post,
 };
 pub use models::{
-    CreatePost, GraphData, GraphLink, GraphNode, Post, PostGraphData, PostResponse, UpdatePost,
+    CreatePost, EmbedResponse, GraphData, GraphLink, GraphNode, Post, PostGraphData, PostResponse,
+    UpdatePost,
 };
 pub use utils::internal_error;
 
