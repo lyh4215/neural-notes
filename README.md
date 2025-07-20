@@ -1,5 +1,5 @@
 # NEURAL-NOTES
-[![CI](https://github.com/lyh4215/neural-notes/actions/workflows/ci.yml/badge.svg)](https://github.com/yourname/yourrepo/actions/workflows/ci.yml)
+[![CI](https://github.com/lyh4215/neural-notes/actions/workflows/ci.yml/badge.svg)](https://github.com/lyh4215/neural-notes/actions/workflows/ci.yml)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare%20Pages-Deployed-orange?logo=cloudflare)](https://neural-notes.pages.dev)
 
 This is monorepo of `neural-notes` app.
