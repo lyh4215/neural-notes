@@ -9,12 +9,7 @@ use axum::{
 
 use jwt_authorizer::JwtClaims;
 
-use crate::{
-    auth::UserClaims,
-    models::{
-        Comment, CreateComment, CreatePost, CreateUser, Post, PostResponse, UpdatePost, User,
-    },
-};
+use crate::models::{Comment, CreateComment, CreateUser, User};
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, pool::Pool};
 
