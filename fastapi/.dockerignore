@@ -11,8 +11,6 @@ __pycache__/
 *.py[cod]
 *.so
 
-# Dockerfile 자체 (이미 COPY 되어 있으면 빼도 OK)
-Dockerfile
 
 # 모델, 로그, 임시파일
 *.log

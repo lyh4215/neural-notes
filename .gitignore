@@ -33,3 +33,5 @@ libs/*
 !.env.example
 
 GEMINI.md
+
+.fly_secrets

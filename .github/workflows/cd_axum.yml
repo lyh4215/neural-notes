@@ -1,0 +1,27 @@
+name: CD Axum
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'axum/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: axum
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Fly Auth
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy Axum App
+        run: flyctl deploy --remote-only --config fly.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
