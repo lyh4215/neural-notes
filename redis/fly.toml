@@ -14,7 +14,7 @@ primary_region = 'nrt'
   protocol = "tcp"
   auto_stop_machines = "stop"  # 자동 중지 비활성화
   auto_start_machines = true
-  min_machines_running = 0    # 항상 하나는 실행되도록
+  min_machines_running = 1    # 항상 하나는 실행되도록
 
   # 외부 포트는 굳이 열 필요 없음 (Fly 앱 내부에서만 사용)
   [[services.ports]]
