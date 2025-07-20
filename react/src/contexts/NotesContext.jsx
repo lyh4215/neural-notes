@@ -114,7 +114,7 @@ export const NotesProvider = ({ children, editor }) => {
         logMsg(`❌ GET 실패: ${e.message}`);
         console.error('GET failed:', e);
       } finally {
-        setTimeout(() => { isSilentUpdate.current = false; setIsLoadingPost(false); }, 100);
+        setIsLoadingPost(false);
       }
     });
   }, [autoSaveIfNeeded, editor, navigate]);
@@ -151,9 +151,7 @@ export const NotesProvider = ({ children, editor }) => {
         logMsg(`❌ 새 노트 생성 실패: ${e.message}`);
       } finally {
         // 6. 짧은 지연 후 자동 저장 다시 활성화
-        setTimeout(() => {
-          isSilentUpdate.current = false;
-        }, 100);
+
       }
     });
   }, [autoSaveIfNeeded, editor, navigate]);
@@ -209,6 +207,15 @@ export const NotesProvider = ({ children, editor }) => {
     editor.on('update', handleUpdate);
     return () => editor.off('update', handleUpdate);
   }, [editor, title, isLoadingPost, restartAutoSave]);
+
+  useEffect(() => {
+    if (isSilentUpdate.current) {
+      const timer = setTimeout(() => {
+        isSilentUpdate.current = false;
+      }, 0); // 다음 렌더링 사이클에 실행
+      return () => clearTimeout(timer);
+    }
+  }, [postId]);
 
   const onTitleChange = (e) => {
     const newTitle = e.target.value;
