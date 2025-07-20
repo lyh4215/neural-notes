@@ -19,7 +19,7 @@ export const NotesProvider = ({ children, editor }) => {
   const [searchKeyword, setSearchKeyword] = useState("");
   
   const [log, setLog] = useState([]);
-  const logMsg = (msg) => setLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
+  const logMsg = useCallback((msg) => setLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]), []);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPost, setIsLoadingPost] = useState(false);
@@ -39,11 +39,21 @@ export const NotesProvider = ({ children, editor }) => {
   const treeData = useMemo(() => buildTree(filteredPosts), [filteredPosts, buildTree]);
 
   const handleListLoad = useCallback(async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      setPosts([]); // 로그아웃 시 목록 비우기
+      return;
+    }
     try {
       const res = await api.get("/posts");
-      setPosts(res.data);
-      logMsg(`📋 리스트 로드 완료, 총 ${res.data.length}개 글`);
+      if (Array.isArray(res.data)) {
+        
+        setPosts(res.data);
+        logMsg(`📋 리스트 로드 완료, 총 ${res.data.length}개 글`);
+      } else {
+        console.error('API 응답이 배열이 아닙니다:', res.data);
+        setPosts([]); // 배열이 아니면 비우기
+        logMsg('❌ LIST 실패: 응답 데이터 형식이 잘못되었습니다.');
+      }
     } catch (e) {
       if (e.response && e.response.status === 401) {
         logMsg("세션이 만료되었습니다. 다시 로그인해주세요.");
@@ -51,8 +61,9 @@ export const NotesProvider = ({ children, editor }) => {
       } else {
         logMsg(`❌ LIST 실패: ${e.message}`);
       }
+      setPosts([]); // 에러 발생 시 비우기
     }
-  }, [isLoggedIn, handleLogout]);
+  }, [isLoggedIn, handleLogout, logMsg]);
 
   useEffect(() => {
     handleListLoad();
@@ -89,22 +100,22 @@ export const NotesProvider = ({ children, editor }) => {
   }, [postId, title, editor]);
 
   const loadNode = useCallback((node) => {
-    console.log('loadNode called with node:', node);
+    
     if (!node.postId || !editor) {
-      console.log('loadNode: Missing postId or editor.');
+      
       return;
     }
     autoSaveIfNeeded(async () => {
       setIsLoadingPost(true);
       try {
-        console.log('Fetching post:', node.postId);
+        
         const res = await api.get(`/posts/${node.postId}`);
         const p = res.data;
         isSilentUpdate.current = true;
         setPostId(p.id.toString());
         setTitle(p.title);
         lastTitleRef.current = p.title;
-        console.log('Setting editor content to:', p.content);
+        
         editor.commands.setContent(p.content || '');
         lastContentRef.current = p.content || '';
         setRelatedPosts(p.related_posts.slice(0, 3));
@@ -226,7 +237,7 @@ export const NotesProvider = ({ children, editor }) => {
   const value = {
     posts, setPosts, postId, setPostId, title, setTitle, onTitleChange,
     relatedPosts, setRelatedPosts, searchKeyword, setSearchKeyword,
-    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving
+    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving, treeData
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;

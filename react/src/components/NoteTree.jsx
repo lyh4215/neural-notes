@@ -20,8 +20,8 @@ export default function NoteTree({
       navigate(`/posts/${node.postId}`);
     }
   };
-  const renderTree = (nodes, parentPath = '', depth = 0) =>
-    nodes?.map(node => {
+  const renderTree = (nodes, parentPath = '', depth = 0) => {
+    return nodes?.map(node => {
       const path = parentPath ? `${parentPath}/${node.name}` : node.name;
       const hasChildren = node.children?.length > 0;
       const isExpanded = expanded[path];
@@ -83,6 +83,15 @@ export default function NoteTree({
         </div>
       );
     });
+  };
 
-  return <>{renderTree(treeData)}</>;
+  return (
+    <>
+      {treeData && treeData.length > 0 ? (
+        renderTree(treeData)
+      ) : (
+        <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>표시할 노트가 없습니다.</div>
+      )}
+    </>
+  );
 }
