@@ -3,7 +3,7 @@ name: CD Axum
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'axum/**'
 
