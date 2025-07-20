@@ -10,14 +10,9 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use super::graph::get_related_post;
-use super::models::{CreatePost, Post, PostGraphData, PostResponse, UpdatePost};
+use super::models::{CreatePost, EmbedResponse, Post, PostGraphData, PostResponse, UpdatePost};
 use super::utils::internal_error;
 use crate::auth::UserClaims;
-
-#[derive(Deserialize)]
-pub struct EmbedResponse {
-    pub embedding: Vec<f32>,
-}
 
 pub async fn create_post(
     State(db): State<Pool<Postgres>>,
