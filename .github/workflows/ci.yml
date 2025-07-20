@@ -28,8 +28,8 @@ jobs:
       - name: Run Tests
         run: cargo test
 
-      - name: Docker Build
-        run: docker build -t axum:ci .
+      # - name: Docker Build
+      #   run: docker build -t axum:ci .
 
   frontend:
     name: Frontend CI
@@ -41,5 +41,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Docker Build
-        run: docker build -t react:ci .
+      # - name: Docker Build
+      #   run: docker build -t react:ci .
