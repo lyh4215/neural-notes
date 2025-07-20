@@ -103,51 +103,7 @@ export default function Layout({ editor }) {
 
       <MainPanel editor={editor} />
 
-      {isLogPanelVisible && (
-        <div style={{
-          position: 'fixed',
-          top: 20,
-          right: 20,
-          width: 350,
-          zIndex: 2000,
-        }}>
-          <button 
-            onClick={() => setIsLogPanelVisible(false)}
-            style={{
-              position: 'absolute',
-              top: 5,
-              right: 5,
-              background: '#555',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '50%',
-              width: 20,
-              height: 20,
-              lineHeight: '20px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              zIndex: 2001,
-            }}
-          >
-            ×
-          </button>
-          <pre style={{
-            opacity: 0.8,
-            height: 150, // 높이 축소
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: '#0f0',
-            padding: 10,
-            paddingTop: 30, // 버튼 공간 확보
-            overflowY: 'auto',
-            borderRadius: 8,
-            fontSize: 12,
-            border: '1px solid #444',
-            backdropFilter: 'blur(5px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            margin: 0,
-          }}>{isSaving ? "⏳ 자동저장 중...\n" : ""}{log}</pre>
-        </div>
-      )}
+      
 
       <LoginModal
         isOpen={isLoginModalOpen}

@@ -373,7 +373,7 @@ async fn get_graph_data(
 
             if let (Some(e1), Some(e2)) = (&p1.embedding, &p2.embedding) {
                 // Calculate cosine distance (pgvector uses <-> for cosine distance)
-                println!("Calculating distance between post {} and {}", p1.id, p2.id);
+                //println!("Calculating distance between post {} and {}", p1.id, p2.id);
                 let distance = sqlx::query_scalar::<_, f64>("SELECT $1 <-> $2")
                     .bind(e1)
                     .bind(e2)
@@ -383,7 +383,7 @@ async fn get_graph_data(
                         eprintln!("Error calculating distance: {}", e);
                         internal_error(e)
                     })?;
-                println!("Distance: {}", distance);
+                //println!("Distance: {}", distance);
 
                 // Only add link if similarity is above a certain threshold
                 // Cosine distance ranges from 0 to 2. 0 means identical, 2 means opposite.

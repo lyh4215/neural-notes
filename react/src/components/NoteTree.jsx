@@ -21,7 +21,7 @@ export default function NoteTree({
     }
   };
   const renderTree = (nodes, parentPath = '', depth = 0) =>
-    nodes.map(node => {
+    nodes?.map(node => {
       const path = parentPath ? `${parentPath}/${node.name}` : node.name;
       const hasChildren = node.children?.length > 0;
       const isExpanded = expanded[path];
