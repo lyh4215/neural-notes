@@ -27,6 +27,9 @@ use pgvector::Vector;
 //graph
 use crate::models::{GraphData, GraphLink, GraphNode};
 
+use std::time::Duration;
+use tokio::time::sleep;
+
 pub fn routes(
     //mut conn: MultiplexedConnection
     cache_state: CacheState,
@@ -238,13 +241,46 @@ pub async fn __update_post_from_cache(
     let client = reqwest::Client::new();
     let embed_api_url =
         std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
-    let embed_resp = client
-        .post(format!("{}/embed", embed_api_url))
-        .json(&serde_json::json!({ "text": payload.content })) //TODO : modify this
-        .send()
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-        .unwrap();
+    let max_retries = 3;
+    let retry_delay = Duration::from_secs(10); // ⏱️ 재시도 간격: 10초
+    let mut last_err = None;
+
+    let embed_resp = {
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            match client
+                .post(format!("{}/embed", embed_api_url))
+                .json(&serde_json::json!({ "text": payload.content }))
+                .send()
+                .await
+            {
+                Ok(resp) => break Ok(resp),
+                Err(e) => {
+                    last_err = Some(e.to_string());
+                    if attempt >= max_retries {
+                        break Err((
+                            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            format!(
+                                "Failed after {} attempts: {}, URL: {}",
+                                attempt,
+                                last_err.clone().unwrap_or_default(),
+                                embed_api_url
+                            ),
+                        ));
+                    }
+                    eprintln!(
+                        "⚠️ Request failed (attempt {}): {}. Retrying in {}s...",
+                        attempt,
+                        e,
+                        retry_delay.as_secs()
+                    );
+                    sleep(retry_delay).await;
+                }
+            }
+        }
+    }
+    .unwrap();
 
     let embed_resp: EmbedResponse = embed_resp
         .json()
