@@ -4,14 +4,18 @@ import formatTime from '../utils/formatTime';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNotes } from '../contexts/NotesContext';
+import { useUI } from '../contexts/UIContext';
 import { useTranslation } from 'react-i18next';
 
 export default function NoteTree({
-  treeData, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor
+  treeData, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor
 }) {
   const [expanded, setExpanded] = useState({});
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { loadNode } = useNotes();
+  const { showGraphView, setFocusedNodeId } = useUI();
 
   const toggleExpand = (path) => {
     setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
@@ -19,7 +23,11 @@ export default function NoteTree({
 
   const handleNodeClick = (node) => {
     if (node.postId) {
-      navigate(`/posts/${node.postId}`);
+      if (showGraphView) {
+        setFocusedNodeId(node.postId);
+      } else {
+        loadNode(node);
+      }
     }
   };
   const renderTree = (nodes, parentPath = '', depth = 0) => {
