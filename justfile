@@ -146,6 +146,5 @@ env:
 # Fly.io 배포 관련 명령
 [group: 'fly']
 fly-deploy-all:
-    cd redis && fly deploy
     cd fastapi && fly deploy
     cd axum && fly deploy

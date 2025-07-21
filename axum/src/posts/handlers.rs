@@ -2,6 +2,7 @@ use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use core::panic;
 use jwt_authorizer::JwtClaims;
 use pgvector::Vector;
 use serde::{Deserialize, Serialize};
@@ -151,12 +152,42 @@ pub async fn __update_post_from_cache(
     let client = reqwest::Client::new();
     let embed_api_url =
         std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
-    let max_retries = 3;
+    let max_retries = 5;
     let retry_delay = Duration::from_secs(10); // ⏱️ 재시도 간격: 10초
-    let mut last_err = None;
 
+    // Step 1: Wait for /health to return 200 OK
+    let mut health_ok = false;
+    for attempt in 1..=max_retries {
+        match client.get(format!("{}/health", embed_api_url)).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                health_ok = true;
+                break;
+            }
+            Ok(resp) => {
+                eprintln!(
+                    "🔁 /health responded with non-200 ({}), attempt {}/{}",
+                    resp.status(),
+                    attempt,
+                    max_retries
+                );
+            }
+            Err(e) => {
+                eprintln!("⚠️ Failed to reach /health (attempt {}): {}", attempt, e);
+            }
+        }
+        sleep(retry_delay).await;
+    }
+
+    if !health_ok {
+        panic!(
+            "❌ /health did not return 200 OK after {} attempts. Aborting update.",
+            max_retries
+        );
+    }
+    // Step 2: Send the /embed request
     let embed_resp = {
         let mut attempt = 0;
+        let mut last_err = None;
         loop {
             attempt += 1;
             match client
