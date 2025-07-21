@@ -6,6 +6,7 @@ from typing import List
 from sentence_transformers import SentenceTransformer
 from threading import Lock
 from dotenv import load_dotenv
+import secrets
 
 load_dotenv()
 
