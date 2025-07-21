@@ -5,11 +5,13 @@ import api from '../api';
 import useTreeBuilder from '../hooks/useTreeBuilder';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const NotesContext = createContext();
 
 
 export const NotesProvider = ({ children, editor }) => {
+  const { t } = useTranslation();
   const { isLoggedIn, handleLogout } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
@@ -42,7 +44,7 @@ export const NotesProvider = ({ children, editor }) => {
 
   const handleListLoad = useCallback(async () => {
     if (!isLoggedIn) {
-      setPosts([]); // 로그아웃 시 목록 비우기
+      setPosts([]); // {t('clear_list_on_logout')}
       setListError(null); // 에러 상태 초기화
       return;
     }
@@ -53,20 +55,20 @@ export const NotesProvider = ({ children, editor }) => {
       if (Array.isArray(res.data)) {
         
         setPosts(res.data);
-        logMsg(`📋 리스트 로드 완료, 총 ${res.data.length}개 글`);
+        logMsg(t('list_load_complete', { count: res.data.length }));
       } else {
-        console.error('API 응답이 배열이 아닙니다:', res.data);
+        console.error(t('api_response_not_array'), res.data);
         setPosts([]); // 배열이 아니면 비우기
-        logMsg('❌ LIST 실패: 응답 데이터 형식이 잘못되었습니다.');
+        logMsg(t('list_fail_invalid_data_format'));
       }
     } catch (e) {
       if (e.response && e.response.status === 401) {
-        logMsg("세션이 만료되었습니다. 다시 로그인해주세요.");
+        logMsg(t('session_expired'));
         handleLogout();
       } else {
-        const errorMessage = e.code === 'ERR_NETWORK' ? '백엔드 서버에 연결할 수 없습니다' : (e.response?.data?.detail || e.message);
-        logMsg(`❌ LIST 실패: ${errorMessage}`);
-        setListError(`노트를 불러오는데 실패했습니다. (${errorMessage})`);
+        const errorMessage = e.code === 'ERR_NETWORK' ? t('backend_connection_failed') : (e.response?.data?.detail || e.message);
+        logMsg(t('list_fail', { message: errorMessage }));
+        setListError(t('failed_to_load_notes') + ` (${errorMessage})`);
       }
       setPosts([]); // 에러 발생 시 비우기
     } finally {
@@ -92,9 +94,9 @@ export const NotesProvider = ({ children, editor }) => {
     if (curTitle !== lastTitleRef.current || curContent !== lastContentRef.current) {
       setIsSaving(true);
       try {
-        const res = await api.put(`/posts/${postId}`, { title: curTitle || "제목 없음", content: curContent });
+        const res = await api.put(`/posts/${postId}`, { title: curTitle || t('untitled'), content: curContent });
         setPosts(posts => Array.isArray(posts) ? posts.map(p => p.id === Number(postId) ? res.data : p) : [res.data]);
-        logMsg(`💾 자동저장 완료 (id: ${postId})`);
+        logMsg(t('autosave_complete', { postId }));
         lastTitleRef.current = curTitle;
         lastContentRef.current = curContent;
       } catch (e) {
@@ -128,10 +130,10 @@ export const NotesProvider = ({ children, editor }) => {
         editor.commands.setContent(p.content || '');
         lastContentRef.current = p.content || '';
         setRelatedPosts(p.related_posts.slice(0, 3));
-        logMsg(`📄 단일 조회 완료: ${p.title}`);
+        logMsg(t('single_view_complete', { title: p.title }));
         navigate(`/posts/${p.id}`);
       } catch (e) {
-        logMsg(`❌ GET 실패: ${e.message}`);
+        logMsg(t('get_failed', { message: e.message }));
         console.error('GET failed:', e);
       } finally {
         setIsLoadingPost(false);
@@ -147,9 +149,9 @@ export const NotesProvider = ({ children, editor }) => {
   
       try {
         // 1. 새 노트 생성 요청
-        const res = await api.post("/posts", { title: "제목 없음", content: "" });
+        const res = await api.post("/posts", { title: t('untitled'), content: "" });
         const newPost = res.data;
-        logMsg(`✅ 새 노트 생성 완료: ID ${newPost.id}`);
+        logMsg(t('new_note_created', { id: newPost.id }));
   
         // 2. 전체 포스트 목록에 새 노트 추가
         setPosts(prevPosts => [...prevPosts, newPost]);
@@ -157,7 +159,7 @@ export const NotesProvider = ({ children, editor }) => {
         // 3. UI 상태를 새 노트 기준으로 즉시 업데이트
         setPostId(newPost.id.toString());
         setTitle(newPost.title);
-        editor.commands.setContent(newPost.content || '<p>✍️ 여기서 글을 작성하세요</p>');
+        editor.commands.setContent(newPost.content || t('write_here'));
         setRelatedPosts([]);
   
         // 4. 마지막 저장 상태를 새 노트 기준으로 업데이트
@@ -168,7 +170,7 @@ export const NotesProvider = ({ children, editor }) => {
         navigate(`/posts/${newPost.id}`);
   
       } catch (e) {
-        logMsg(`❌ 새 노트 생성 실패: ${e.message}`);
+        logMsg(t('new_note_creation_failed', { message: e.message }));
       } finally {
         // 6. 짧은 지연 후 자동 저장 다시 활성화
 
@@ -180,19 +182,19 @@ export const NotesProvider = ({ children, editor }) => {
     if (!delPostId) return;
     try {
       await api.delete(`/posts/${delPostId}`);
-      logMsg(`🗑️ 삭제 완료 (id: ${delPostId})`);
+      logMsg(t('delete_complete', { id: delPostId }));
       setPosts(p => p.filter(p => p.id !== Number(delPostId)));
       if (postId === String(delPostId)) {
         setPostId("");
         setTitle("");
-        editor?.commands.setContent('<p>✍️ 여기서 글을 작성하세요</p>');
+        editor?.commands.setContent(t('write_here'));
         setRelatedPosts([]);
         lastTitleRef.current = "";
         lastContentRef.current = "";
         navigate(`/`);
       }
     } catch (e) {
-      logMsg(`❌ DELETE 실패: ${e.message}`);
+      logMsg(t('delete_failed', { message: e.message }));
     }
   };
 
@@ -204,13 +206,13 @@ export const NotesProvider = ({ children, editor }) => {
       if (postId && editor) {
         setIsSaving(true);
         try {
-          const res = await api.put(`/posts/${postId}`, { title: titleValue || "제목 없음", content: contentValue });
+          const res = await api.put(`/posts/${postId}`, { title: titleValue || t('untitled'), content: contentValue });
           setPosts(posts => Array.isArray(posts) ? posts.map(p => p.id === Number(postId) ? res.data : p) : [res.data]);
-          logMsg(`💾 자동저장 완료 (id: ${postId})`);
+          logMsg(t('autosave_complete', { postId }));
           lastTitleRef.current = titleValue;
           lastContentRef.current = contentValue;
         } catch (e) {
-          logMsg(`❌ 자동저장 실패: ${e.message}`);
+          logMsg(t('autosave_failed', { message: e.message }));
         } finally {
           setIsSaving(false);
         }

@@ -4,12 +4,14 @@ import formatTime from '../utils/formatTime';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function NoteTree({
   treeData, loadNode, handleDelete, isLoggedIn, showDeleteFor, setShowDeleteFor
 }) {
   const [expanded, setExpanded] = useState({});
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const toggleExpand = (path) => {
     setExpanded(prev => ({ ...prev, [path]: !prev[path] }));
@@ -71,7 +73,7 @@ export default function NoteTree({
                             width: '100%', padding: '8px 0', color: '#f44', background: 'none',
                             border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer'
                           }}
-                        >삭제</button>
+                        > {t('delete')}</button>
                       </div>
                     }
                   </div>
@@ -90,7 +92,7 @@ export default function NoteTree({
       {treeData && treeData.length > 0 ? (
         renderTree(treeData)
       ) : (
-        <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>표시할 노트가 없습니다.</div>
+        <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>{t('no_notes_to_display')}</div>
       )}
     </>
   );

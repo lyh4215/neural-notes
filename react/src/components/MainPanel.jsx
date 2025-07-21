@@ -5,8 +5,10 @@ import { useUI } from '../contexts/UIContext';
 import EditorPanel from './EditorPanel';
 import RelatedNotes from './RelatedNotes';
 import GraphView from './GraphView';
+import { useTranslation } from 'react-i18next';
 
 export default function MainPanel({ editor }) {
+  const { t } = useTranslation();
   const { postId, title, onTitleChange, relatedPosts, loadNode } = useNotes();
   const { isSidebarHidden, setIsSidebarHidden } = useUI();
   const [showGraph, setShowGraph] = useState(false);
@@ -15,10 +17,10 @@ export default function MainPanel({ editor }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <button onClick={() => setShowGraph(false)} style={{ padding: '4px 12px', borderRadius: 6 }}>
-          에디터 뷰
+          {t('editor_view')}
         </button>
         <button onClick={() => setShowGraph(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>
-          그래프 뷰
+          {t('graph_view')}
         </button>
       </div>
 
@@ -57,7 +59,7 @@ export default function MainPanel({ editor }) {
             opacity: 0.85
           }}
         >
-          ➡ 사이드바 나타내기
+          {t('show_sidebar')}
         </button>
       }
     </div>

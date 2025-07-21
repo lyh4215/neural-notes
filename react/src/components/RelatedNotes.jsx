@@ -2,12 +2,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import formatTime from '../utils/formatTime';
+import { useTranslation } from 'react-i18next';
 
 export default function RelatedNotes({ relatedPosts }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   return (
     <div style={{ marginTop: 20 }}>
-      <h3 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>관련 노트</h3>
+      <h3 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>{t('related_notes')}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, textAlign: 'center' }}>
         {relatedPosts.map(rp => (
           <div key={rp.id}
