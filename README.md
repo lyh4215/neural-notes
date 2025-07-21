@@ -8,6 +8,10 @@ This is monorepo of `neural-notes` app.
 
 ![example](.github/docs/examples2.gif)
 
+
+## Structure
+![pipeline](.github/docs/pipeline.jpeg)
+
 ## Quick Start for dev
 1. install just &  docker
 
