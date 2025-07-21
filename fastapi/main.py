@@ -4,6 +4,29 @@ from typing import List
 from sentence_transformers import SentenceTransformer
 from threading import Lock
 
+import os
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from typing import List
+from sentence_transformers import SentenceTransformer
+from threading import Lock
+from dotenv import load_dotenv
+
+load_dotenv()
+
+security = HTTPBearer()
+
+async def get_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    if token == os.getenv("FASTAPI_API_KEY"):
+        return token
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
 # FastAPI 앱 생성
 app = FastAPI(title="Local LLM Embedding API")
 
@@ -20,7 +43,7 @@ class EmbeddingResponse(BaseModel):
     embedding: List[float]
 
 # POST /embed 엔드포인트
-@app.post("/embed", response_model=EmbeddingResponse)
+@app.post("/embed", response_model=EmbeddingResponse, dependencies=[Depends(get_api_key)])
 async def embed_text(request: TextRequest):
     global model
 
