@@ -51,7 +51,7 @@ export default function NoteTree({
             </span>
             {node.postId && (
               <>
-                <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>{formatTime(node.updatedAt)}</span>
+                <span style={{ marginLeft: 8, fontSize: 12, color: '#888' }}>{formatTime(node.updatedAt, t)}</span>
                 {showMenuBtn &&
                   <div style={{ position: 'relative', marginLeft: 6 }}>
                     <button

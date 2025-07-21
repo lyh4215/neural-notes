@@ -1,8 +1,6 @@
 // src/utils/formatTime.js
-import { useTranslation } from 'react-i18next';
 
-export default function formatTime(dateString) {
-    const { t } = useTranslation();
+export default function formatTime(dateString, t) {
     const date = new Date(dateString);
     const now = new Date();
     const msPerDay = 24 * 60 * 60 * 1000;
@@ -14,4 +12,3 @@ export default function formatTime(dateString) {
     if (diffDays < 7) return t('days_ago', { count: diffDays });
     return date.toLocaleDateString();
   }
-  

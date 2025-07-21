@@ -26,7 +26,7 @@ export default function RelatedNotes({ relatedPosts }) {
               {rp.title}
             </div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              {formatTime(rp.updated_at)}
+              {formatTime(rp.updated_at, t)}
             </div>
           </div>
         ))}
