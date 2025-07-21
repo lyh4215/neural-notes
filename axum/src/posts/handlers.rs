@@ -196,9 +196,8 @@ pub async fn __update_post_from_cache(
                     "Authorization",
                     format!(
                         "Bearer {}",
-                        std::env::var("EMBED_API_KEY").unwrap_or_else(|_| {
-                            panic!("❌ EMBED_API_KEY environment variable is not set. Aborting request.");
-                        })
+                        std::env::var("EMBED_API_KEY").unwrap_or_default()
+                    ),
                 )
                 .json(&serde_json::json!({ "text": payload.content }))
                 .send()
