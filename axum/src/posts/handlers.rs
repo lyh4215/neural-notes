@@ -192,6 +192,13 @@ pub async fn __update_post_from_cache(
             attempt += 1;
             match client
                 .post(format!("{}/embed", embed_api_url))
+                .header(
+                    "Authorization",
+                    format!(
+                        "Bearer {}",
+                        std::env::var("EMBED_API_KEY").unwrap_or_default()
+                    ),
+                )
                 .json(&serde_json::json!({ "text": payload.content }))
                 .send()
                 .await

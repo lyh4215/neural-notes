@@ -141,6 +141,7 @@ status:
 env:
     cp axum/.env.example axum/.env
     cp react/.env.example react/.env
+    cp fastapi/.env.example fastapi/.env
     cp .env.example .env
 
 # Fly.io 배포 관련 명령
