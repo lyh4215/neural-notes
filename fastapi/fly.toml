@@ -8,21 +8,20 @@ primary_region = 'nrt'
 
 [build]
 
-[[services]]
+[http_service]
   internal_port = 8001
-  protocol = "tcp"
-  auto_stop_machines = "stop"
+  force_https = false
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
+  processes = ['app']
 
-  [services.concurrency]
-    type = "connections"
-    soft_limit = 25
-    hard_limit = 50
-
-  [[services.ports]]
-    handlers = []  # 외부 노출 안 함
-    port = 8001
+  # [[http_service.checks]]
+  #   interval = "20s"
+  #   timeout = "10s"
+  #   grace_period = "30s"  # 💡 핵심: 서버 뜨기 전엔 체크하지 마!
+  #   method = "get"
+  #   path = "/health"  # FastAPI에 이 경로 추가 필요
 
 [[vm]]
   size = "shared-cpu-1x"
