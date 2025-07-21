@@ -53,7 +53,6 @@ services:
       - "5173:5173"
     volumes:
       - ./react:/app               # 전체 소스코드 마운트
-      - /app/node_modules          # 컨테이너 내부 node_modules 유지
     command: ["npm", "run", "dev", "--", "--host"]   # Vite dev 서버 핫리로드
 
   embed_api:

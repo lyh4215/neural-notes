@@ -1,12 +1,14 @@
 
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import api from '../api';
+import { useTranslation } from 'react-i18next';
 
 const AuthContext = createContext();
 
 
 
 export const AuthProvider = ({ children }) => {
+  const { t } = useTranslation();
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('accessToken'));
   const [loggedInUsername, setLoggedInUsername] = useState(localStorage.getItem('username') || '');
   const [loginError, setLoginError] = useState('');
@@ -26,10 +28,10 @@ export const AuthProvider = ({ children }) => {
         setLoginError('');
         return true;
       }
-      setLoginError('로그인 실패: 토큰 없음');
+      setLoginError(t('login_failed') + ' ' + t('no_token'));
       return false;
     } catch (e) {
-      setLoginError('로그인 실패: ' + (e.response?.data?.detail || e.message));
+      setLoginError(t('login_failed') + ' ' + (e.response?.data?.detail || e.message));
       return false;
     }
   };

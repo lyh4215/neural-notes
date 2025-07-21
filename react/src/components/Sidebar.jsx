@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../contexts/NotesContext';
 import { useUI } from '../contexts/UIContext';
 import NoteTree from './NoteTree';
+import { useTranslation } from 'react-i18next';
 
 export default function Sidebar() {
+  const { t, i18n } = useTranslation();
   const { isLoggedIn, loggedInUsername, handleLogout } = useAuth();
   const { searchKeyword, setSearchKeyword, treeData, loadNode, handleDelete, handleNew, isSaving, isLoadingList, listError, log } = useNotes();
   const { setIsLoginModalOpen, setIsSignupModalOpen, isSidebarHidden, setIsSidebarHidden, showDeleteFor, setShowDeleteFor, dividerPosition } = useUI();
@@ -29,27 +31,27 @@ export default function Sidebar() {
         {isLoggedIn ? (
           <>
             <span style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>{loggedInUsername}</span>
-            <button onClick={handleLogout} style={{ padding: '4px 12px', borderRadius: 6 }}>로그아웃</button>
+            <button onClick={handleLogout} style={{ padding: '4px 12px', borderRadius: 6 }}>{t('logout')}</button>
           </>
         ) : (
           <>
-            <button onClick={() => setIsLoginModalOpen(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>로그인</button>
-            <button onClick={() => setIsSignupModalOpen(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>회원가입</button>
+            <button onClick={() => setIsLoginModalOpen(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>{t('login')}</button>
+            <button onClick={() => setIsSignupModalOpen(true)} style={{ padding: '4px 12px', borderRadius: 6 }}>{t('signup')}</button>
           </>
         )}
       </div>
-      <input type="text" placeholder="검색어 입력..." value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
+      <input type="text" placeholder={t('search_placeholder')} value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
         style={{
           marginBottom: 10, width: '100%', padding: 8, borderRadius: 4,
           border: '1px solid #444', background: '#2e2e2e', color: '#fff'
         }} />
-      <h2 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>🧠 Neural Notes</h2>
+      <h2 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>{t('neural_notes')}</h2>
       <div style={{ marginBottom: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button onClick={handleNew} disabled={!isLoggedIn}>🆕 New</button>
+        <button onClick={handleNew} disabled={!isLoggedIn}>{t('new_note')}</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 10, background: '#1e1e1e' }}>
         {isLoadingList ? (
-          <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>노트 로딩 중...</div>
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>{t('loading_notes')}</div>
         ) : listError ? (
           <div style={{ color: '#f44', textAlign: 'center', marginTop: 20 }}>{listError}</div>
         ) : (
@@ -81,8 +83,12 @@ export default function Sidebar() {
           opacity: 0.85
         }}
       >
-        ⬅ 사이드바 숨기기
+        {t('hide_sidebar')}
       </button>
+      <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', gap: 5 }}>
+        <button onClick={() => i18n.changeLanguage('ko')} style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12, background: i18n.language === 'ko' ? '#646cff' : '#1a1a1a' }}>KO</button>
+        <button onClick={() => i18n.changeLanguage('en')} style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12, background: i18n.language === 'en' ? '#646cff' : '#1a1a1a' }}>EN</button>
+      </div>
     </div>
   );
 }

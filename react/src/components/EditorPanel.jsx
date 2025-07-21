@@ -2,8 +2,10 @@
 import React from 'react';
 import { EditorContent } from '@tiptap/react';
 import '../tiptap.css';
+import { useTranslation } from 'react-i18next';
 
 export default function EditorPanel({ editor, postId, title, onTitleChange }) {
+  const { t } = useTranslation();
   return (
     <div style={{
       flex: 1, // 👈 부모 자체가 flex 아이템이 되어야 함!
@@ -13,10 +15,10 @@ export default function EditorPanel({ editor, postId, title, onTitleChange }) {
       minWidth: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        <h2 style={{ color: '#fff', margin: 0 }}>📝 Editor</h2>
+        <h2 style={{ color: '#fff', margin: 0 }}>{t('editor')}</h2>
         <input
           type="text"
-          placeholder="Title"
+          placeholder={t('title')}
           value={title}
           onChange={onTitleChange}
           disabled={!postId}
@@ -64,7 +66,7 @@ export default function EditorPanel({ editor, postId, title, onTitleChange }) {
             color: '#aaa', fontSize: 20, fontWeight: 600, pointerEvents: 'all',
             borderRadius: 8, userSelect: 'none',
           }}>
-            노트가 선택되지 않았습니다
+            {t('no_note_selected')}
           </div>
         }
       </div>

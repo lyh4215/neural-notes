@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ForceGraph2D } from 'react-force-graph';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api';
+import { useTranslation } from 'react-i18next';
 
 export default function GraphView() {
+  const { t } = useTranslation();
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +14,7 @@ export default function GraphView() {
 
   const fetchGraphData = useCallback(async () => {
     if (!isLoggedIn) {
-      setError('로그인이 필요합니다.');
+      setError(t('login_required'));
       setLoading(false);
       return;
     }
@@ -23,11 +25,11 @@ export default function GraphView() {
       setGraphData(response.data);
     } catch (err) {
       console.error('Failed to fetch graph data:', err);
-      setError('그래프 데이터를 불러오는데 실패했습니다.');
+      setError(t('graph_error'));
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, t]);
 
   useEffect(() => {
     fetchGraphData();
@@ -53,9 +55,9 @@ export default function GraphView() {
     console.log('Node clicked:', node.id, node.name);
   }, []);
 
-  if (loading) return <div style={{ color: '#fff' }}>그래프 로딩 중...</div>;
+  if (loading) return <div style={{ color: '#fff' }}>{t('graph_loading')}</div>;
   if (error) return <div style={{ color: '#f44' }}>{error}</div>;
-  if (graphData.nodes.length === 0) return <div style={{ color: '#fff' }}>표시할 노트가 없습니다.</div>;
+  if (graphData.nodes.length === 0) return <div style={{ color: '#fff' }}>{t('no_graph_data')}</div>;
 
   return (
     <div style={{
@@ -66,7 +68,7 @@ export default function GraphView() {
       overflow: 'hidden',
       backgroundColor: '#1a1a1a'
     }}>
-      <h2 style={{ color: '#fff', margin: 0, padding: 10, textAlign: 'center', background: '#1a1a1a' }}>유사 노트 그래프</h2>
+      <h2 style={{ color: '#fff', margin: 0, padding: 10, textAlign: 'center', background: '#1a1a1a' }}>{t('similar_notes_graph')}</h2>
       <ForceGraph2D
         ref={fgRef}
         graphData={graphData}
