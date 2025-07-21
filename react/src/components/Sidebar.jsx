@@ -7,7 +7,7 @@ import NoteTree from './NoteTree';
 
 export default function Sidebar() {
   const { isLoggedIn, loggedInUsername, handleLogout } = useAuth();
-  const { searchKeyword, setSearchKeyword, treeData, loadNode, handleDelete, handleNew, isSaving, log } = useNotes();
+  const { searchKeyword, setSearchKeyword, treeData, loadNode, handleDelete, handleNew, isSaving, isLoadingList, listError, log } = useNotes();
   const { setIsLoginModalOpen, setIsSignupModalOpen, isSidebarHidden, setIsSidebarHidden, showDeleteFor, setShowDeleteFor, dividerPosition } = useUI();
 
   if (isSidebarHidden) return null;
@@ -48,14 +48,20 @@ export default function Sidebar() {
         <button onClick={handleNew} disabled={!isLoggedIn}>🆕 New</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 10, background: '#1e1e1e' }}>
-        <NoteTree
-          treeData={treeData}
-          loadNode={loadNode}
-          handleDelete={handleDelete}
-          isLoggedIn={isLoggedIn}
-          showDeleteFor={showDeleteFor}
-          setShowDeleteFor={setShowDeleteFor}
-        />
+        {isLoadingList ? (
+          <div style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>노트 로딩 중...</div>
+        ) : listError ? (
+          <div style={{ color: '#f44', textAlign: 'center', marginTop: 20 }}>{listError}</div>
+        ) : (
+          <NoteTree
+            treeData={treeData}
+            loadNode={loadNode}
+            handleDelete={handleDelete}
+            isLoggedIn={isLoggedIn}
+            showDeleteFor={showDeleteFor}
+            setShowDeleteFor={setShowDeleteFor}
+          />
+        )}
       </div>
       
       <button

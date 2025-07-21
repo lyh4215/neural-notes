@@ -23,6 +23,8 @@ export const NotesProvider = ({ children, editor }) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPost, setIsLoadingPost] = useState(false);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [listError, setListError] = useState(null);
 
   const autoSaveTimer = useRef(null);
   const lastContentRef = useRef("");
@@ -41,8 +43,11 @@ export const NotesProvider = ({ children, editor }) => {
   const handleListLoad = useCallback(async () => {
     if (!isLoggedIn) {
       setPosts([]); // 로그아웃 시 목록 비우기
+      setListError(null); // 에러 상태 초기화
       return;
     }
+    setIsLoadingList(true);
+    setListError(null); // 새로운 로드 시작 시 에러 상태 초기화
     try {
       const res = await api.get("/posts");
       if (Array.isArray(res.data)) {
@@ -59,9 +64,13 @@ export const NotesProvider = ({ children, editor }) => {
         logMsg("세션이 만료되었습니다. 다시 로그인해주세요.");
         handleLogout();
       } else {
-        logMsg(`❌ LIST 실패: ${e.message}`);
+        const errorMessage = e.code === 'ERR_NETWORK' ? '백엔드 서버에 연결할 수 없습니다' : (e.response?.data?.detail || e.message);
+        logMsg(`❌ LIST 실패: ${errorMessage}`);
+        setListError(`노트를 불러오는데 실패했습니다. (${errorMessage})`);
       }
       setPosts([]); // 에러 발생 시 비우기
+    } finally {
+      setIsLoadingList(false);
     }
   }, [isLoggedIn, handleLogout, logMsg]);
 
@@ -237,7 +246,7 @@ export const NotesProvider = ({ children, editor }) => {
   const value = {
     posts, setPosts, postId, setPostId, title, setTitle, onTitleChange,
     relatedPosts, setRelatedPosts, searchKeyword, setSearchKeyword,
-    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving, treeData
+    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving, isLoadingList, listError, treeData
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
