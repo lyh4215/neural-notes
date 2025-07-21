@@ -19,7 +19,7 @@ security = HTTPBearer()
 
 async def get_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
-    if token == os.getenv("FASTAPI_API_KEY"):
+    if secrets.compare_digest(token, os.getenv("FASTAPI_API_KEY")):
         return token
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
