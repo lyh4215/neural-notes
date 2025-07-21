@@ -178,7 +178,7 @@ export const NotesProvider = ({ children, editor }) => {
     });
   }, [autoSaveIfNeeded, editor, navigate]);
 
-  const handleDelete = async (delPostId) => {
+  const handleDelete = useCallback(async (delPostId) => {
     if (!delPostId) return;
     try {
       await api.delete(`/posts/${delPostId}`);
@@ -196,7 +196,7 @@ export const NotesProvider = ({ children, editor }) => {
     } catch (e) {
       logMsg(t('delete_failed', { message: e.message }));
     }
-  };
+  }, [postId, editor, navigate, logMsg, t]);
 
   const restartAutoSave = useCallback((titleValue, contentValue) => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);

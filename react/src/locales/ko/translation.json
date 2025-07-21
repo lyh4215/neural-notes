@@ -34,5 +34,6 @@
   "no_graph_data": "표시할 노트가 없습니다.",
   "similar_notes_graph": "유사 노트 그래프",
   "write_here": "✍️ 여기서 글을 작성하세요",
-  "cancel": "취소"
+  "cancel": "취소",
+  "open": "열기"
 }

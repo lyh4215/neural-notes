@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ForceGraph2D } from 'react-force-graph';
+import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotes } from '../contexts/NotesContext';
 import api from '../api';
 import { useTranslation } from 'react-i18next';
 
@@ -10,7 +12,13 @@ export default function GraphView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isLoggedIn } = useAuth();
+  const { focusedNodeId, setFocusedNodeId, setShowGraphView } = useUI(); 
+  const { loadNode } = useNotes();
   const fgRef = useRef();
+
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [contextMenuNodeId, setContextMenuNodeId] = useState(null);
 
   const fetchGraphData = useCallback(async () => {
     if (!isLoggedIn) {
@@ -36,6 +44,17 @@ export default function GraphView() {
   }, [fetchGraphData]);
 
   useEffect(() => {
+    if (fgRef.current && focusedNodeId) {
+      const node = graphData.nodes.find(n => n.id === String(focusedNodeId));
+      if (node) {
+        fgRef.current.centerAt(node.x, node.y, 1000); // 1초 동안 이동
+        fgRef.current.zoom(2.5, 1000); // 1초 동안 확대
+      }
+      setFocusedNodeId(null); // 포커스가 끝나면 ID를 리셋
+    }
+  }, [focusedNodeId, graphData.nodes, setFocusedNodeId]);
+
+  useEffect(() => {
     const fg = fgRef.current;
     if (fg && !loading && !error && graphData.nodes.length > 0) {
       fg.d3Force('charge').strength(-200);
@@ -50,9 +69,18 @@ export default function GraphView() {
   }, [loading, error, graphData]);
 
   const handleNodeClick = useCallback(node => {
-    // 노드 클릭 시 해당 게시물로 이동 (필요하다면)
-    // window.location.href = `/posts/${node.id}`;
-    console.log('Node clicked:', node.id, node.name);
+    const fg = fgRef.current;
+    if (!fg) return;
+
+    const screenCoords = fg.graph2ScreenCoords(node.x, node.y);
+
+    setShowContextMenu(true);
+    setContextMenuPos({ x: screenCoords.x, y: screenCoords.y + 40 });
+    setContextMenuNodeId(node.id);
+  }, []);
+
+  const handleBackgroundClick = useCallback(() => {
+    setShowContextMenu(false);
   }, []);
 
   if (loading) return <div style={{ color: '#fff' }}>{t('graph_loading')}</div>;
@@ -160,9 +188,43 @@ export default function GraphView() {
           ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
         }}
         onNodeClick={handleNodeClick}
+        onBackgroundClick={handleBackgroundClick}
         width={window.innerWidth * 0.6 - 40} // MainPanel의 대략적인 너비에 맞춤
         height={window.innerHeight * 0.8} // 적절한 높이 설정
       />
+      {showContextMenu && (
+        <div
+          style={{
+            position: 'absolute',
+            left: contextMenuPos.x,
+            top: contextMenuPos.y,
+            background: '#333',
+            border: '1px solid #555',
+            borderRadius: 4,
+            padding: 5,
+            zIndex: 1000,
+          }}
+        >
+          <button
+            onClick={() => {
+              loadNode({ postId: contextMenuNodeId });
+              setShowGraphView(false);
+              setShowContextMenu(false);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#fff',
+              padding: '5px 10px',
+              cursor: 'pointer',
+              width: '100%',
+              textAlign: 'left',
+            }}
+          >
+            {t('open')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

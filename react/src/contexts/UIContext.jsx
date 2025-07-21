@@ -9,6 +9,8 @@ export const UIProvider = ({ children }) => {
   const [dividerPosition, setDividerPosition] = useState(window.innerWidth * 0.4);
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
   const [showDeleteFor, setShowDeleteFor] = useState(null);
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
+  const [showGraphView, setShowGraphView] = useState(false);
 
   const handleMouseMove = useCallback((e) => {
     const pos = Math.max(window.innerWidth * 0.3, Math.min(e.clientX, window.innerWidth * 0.9));
@@ -51,7 +53,9 @@ export const UIProvider = ({ children }) => {
     isSignupModalOpen, setIsSignupModalOpen,
     dividerPosition, handleMouseDown,
     isSidebarHidden, setIsSidebarHidden,
-    showDeleteFor, setShowDeleteFor
+    showDeleteFor, setShowDeleteFor,
+    focusedNodeId, setFocusedNodeId,
+    showGraphView, setShowGraphView
   };
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
