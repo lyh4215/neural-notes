@@ -35,5 +35,3 @@ libs/*
 GEMINI.md
 
 .fly_secrets
-
-.sqlx/
