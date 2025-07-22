@@ -54,49 +54,39 @@ pub async fn get_graph_data(
     .await
     .map_err(internal_error)?;
 
-    let mut nodes: Vec<GraphNode> = Vec::new();
-    let mut links: Vec<GraphLink> = Vec::new();
-
-    for post in &posts {
-        nodes.push(GraphNode {
+    let nodes: Vec<GraphNode> = posts
+        .iter()
+        .map(|post| GraphNode {
             id: post.id.to_string(),
             name: post.title.clone(),
-        });
+        })
+        .collect();
+
+    // Helper struct for query result
+    #[derive(sqlx::FromRow)]
+    struct SimilarPair {
+        source: i64,
+        target: i64,
+        distance: Option<f64>,
     }
 
-    // Calculate similarities and create links
-    for i in 0..posts.len() {
-        for j in (i + 1)..posts.len() {
-            let p1 = &posts[i];
-            let p2 = &posts[j];
+    // Calculate similarities and create links in a single query
+    let similar_pairs = sqlx::query_file_as!(SimilarPair, "sql/get_related_posts.sql", user.sub)
+        .fetch_all(&db)
+        .await
+        .map_err(internal_error)?;
 
-            if let (Some(e1), Some(e2)) = (&p1.embedding, &p2.embedding) {
-                // Calculate cosine distance (pgvector uses <-> for cosine distance)
-                //println!("Calculating distance between post {} and {}", p1.id, p2.id);
-                let distance = sqlx::query_scalar::<_, f64>("SELECT $1 <-> $2")
-                    .bind(e1)
-                    .bind(e2)
-                    .fetch_one(&db)
-                    .await
-                    .map_err(|e| {
-                        eprintln!("Error calculating distance: {}", e);
-                        internal_error(e)
-                    })?;
-                //println!("Distance: {}", distance);
-
-                // Only add link if similarity is above a certain threshold
-                // Cosine distance ranges from 0 to 2. 0 means identical, 2 means opposite.
-                // A distance of < 0.2 means similarity > 0.8 (since similarity = 1 - distance/2)
-                if distance < 0.5 {
-                    links.push(GraphLink {
-                        source: p1.id.to_string(),
-                        target: p2.id.to_string(),
-                        value: (1.0 - (distance / 2.0)) as f32, // Convert distance to similarity (0 to 1)
-                    });
-                }
-            }
-        }
-    }
+    let links: Vec<GraphLink> = similar_pairs
+        .into_iter()
+        .filter_map(|pair| {
+            pair.distance.map(|dist| GraphLink {
+                source: pair.source.to_string(),
+                target: pair.target.to_string(),
+                // 코사인 distance(0~2) → similarity(0~1)
+                value: (1.0 - (dist / 2.0)) as f32,
+            })
+        })
+        .collect();
 
     Ok(Json(GraphData { nodes, links }))
 }
