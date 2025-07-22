@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    path:
+      - 'react/**'
+  pull_request:
+    branches:
+      - master
+    path:
+      - 'react/**'
+
+jobs:
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./react
+    steps:
+      - uses: actions/checkout@v4
+
+      # - name: Docker Build
+      #   run: docker build -t react:ci .
