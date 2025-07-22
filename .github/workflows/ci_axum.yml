@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'axum/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'axum/**'
+
+jobs:
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.0-pg16
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgres://user:password@localhost:5432/test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USER: user
+      DATABASE_PASSWORD: password
+      DATABASE_NAME: test
+
+    defaults:
+      run:
+        working-directory: ./axum
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres --locked
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..10}; do
+            pg_isready -h localhost -U user && break
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+
+      - name: Format Check (cargo fmt)
+        run: cargo fmt --all -- --check
+
+      # - name: Lint Check (cargo clippy)
+      #   run: cargo clippy --all-targets --all-features -- -D warnings
+      
+      - name: Run Migrations
+        run: sqlx migrate run
+
+      - name: Run Tests
+        run: cargo test
