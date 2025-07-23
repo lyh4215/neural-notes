@@ -8,7 +8,7 @@
   "signup_success": "🎉 Sign up successful! Now log in.",
   "signup_failed": "Sign up failed:",
   "login_required": "Login is required.",
-  "new_note": "🆕 New",
+  "new_note": "New Post",
   "search_placeholder": "Enter search keyword...",
   "neural_notes": "🧠 Neural Notes",
   "no_notes_to_display": "No notes to display.",
@@ -35,5 +35,7 @@
   "similar_notes_graph": "Similar Notes Graph",
   "write_here": "✍️ Write here",
   "cancel": "Cancel",
-  "open": "Open"
+  "open": "Open",
+  "search": "AI Search",
+  "show_all_notes": "Turn off AI Search"
 }

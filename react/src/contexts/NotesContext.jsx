@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useContext, useCallback, useMemo, useRef, useEffect } from 'react';
 import api from '../api';
 import useTreeBuilder from '../hooks/useTreeBuilder';
@@ -8,7 +6,6 @@ import { useAuth } from './AuthContext';
 import { useTranslation } from 'react-i18next';
 
 const NotesContext = createContext();
-
 
 export const NotesProvider = ({ children, editor }) => {
   const { t } = useTranslation();
@@ -19,7 +16,8 @@ export const NotesProvider = ({ children, editor }) => {
   const [title, setTitle] = useState("");
   const [relatedPosts, setRelatedPosts] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
-  
+  const [isSearchMode, setIsSearchMode] = useState(false);
+
   const [log, setLog] = useState([]);
   const logMsg = useCallback((msg) => setLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]), []);
 
@@ -33,32 +31,37 @@ export const NotesProvider = ({ children, editor }) => {
   const lastTitleRef = useRef("");
   const isSilentUpdate = useRef(false);
 
-  
   const buildTree = useTreeBuilder();
 
   const filteredPosts = useMemo(
-    () => (Array.isArray(posts) ? posts.filter(p => p.title.toLowerCase().includes(searchKeyword.toLowerCase())) : []),
-    [posts, searchKeyword]
+    () => {
+      if (isSearchMode) {
+        return posts; // When in search mode, display all results from the backend
+      } else {
+        // In regular mode, filter by title based on searchKeyword
+        return Array.isArray(posts) ? posts.filter(p => p.title.toLowerCase().includes(searchKeyword.toLowerCase())) : [];
+      }
+    },
+    [posts, searchKeyword, isSearchMode]
   );
   const treeData = useMemo(() => buildTree(filteredPosts), [filteredPosts, buildTree]);
 
   const handleListLoad = useCallback(async () => {
     if (!isLoggedIn) {
-      setPosts([]); // {t('clear_list_on_logout')}
-      setListError(null); // 에러 상태 초기화
+      setPosts([]);
+      setListError(null);
       return;
     }
     setIsLoadingList(true);
-    setListError(null); // 새로운 로드 시작 시 에러 상태 초기화
+    setListError(null);
     try {
       const res = await api.get("/posts");
       if (Array.isArray(res.data)) {
-        
         setPosts(res.data);
         logMsg(t('list_load_complete', { count: res.data.length }));
       } else {
         console.error(t('api_response_not_array'), res.data);
-        setPosts([]); // 배열이 아니면 비우기
+        setPosts([]);
         logMsg(t('list_fail_invalid_data_format'));
       }
     } catch (e) {
@@ -70,15 +73,38 @@ export const NotesProvider = ({ children, editor }) => {
         logMsg(t('list_fail', { message: errorMessage }));
         setListError(t('failed_to_load_notes') + ` (${errorMessage})`);
       }
-      setPosts([]); // 에러 발생 시 비우기
+      setPosts([]);
     } finally {
       setIsLoadingList(false);
+      setIsSearchMode(false);
     }
-  }, [isLoggedIn, handleLogout, logMsg]);
+  }, [isLoggedIn, handleLogout, logMsg, t]);
 
   useEffect(() => {
     handleListLoad();
   }, [isLoggedIn, handleListLoad]);
+
+  const handleSearch = async () => {
+    if (!searchKeyword.trim()) {
+      handleListLoad();
+      return;
+    }
+    setIsLoadingList(true);
+    setListError(null);
+    try {
+      const res = await api.get(`/posts/search?q=${encodeURIComponent(searchKeyword)}`);
+      setPosts(res.data);
+      setIsSearchMode(true);
+      logMsg(`Search completed for: "${searchKeyword}"`);
+    } catch (e) {
+      const errorMessage = e.response?.data?.detail || e.message;
+      logMsg(`Search failed: ${errorMessage}`);
+      setListError(`Search failed: ${errorMessage}`);
+      setPosts([]);
+    } finally {
+      setIsLoadingList(false);
+    }
+  };
 
   const autoSaveIfNeeded = useCallback(async (nextAction) => {
     if (autoSaveTimer.current) {
@@ -108,25 +134,19 @@ export const NotesProvider = ({ children, editor }) => {
     } else {
       nextAction();
     }
-  }, [postId, title, editor]);
+  }, [postId, title, editor, t, logMsg]);
 
   const loadNode = useCallback((node) => {
-    
-    if (!node.postId || !editor) {
-      
-      return;
-    }
+    if (!node.postId || !editor) return;
     autoSaveIfNeeded(async () => {
       setIsLoadingPost(true);
       try {
-        
         const res = await api.get(`/posts/${node.postId}`);
         const p = res.data;
         isSilentUpdate.current = true;
         setPostId(p.id.toString());
         setTitle(p.title);
         lastTitleRef.current = p.title;
-        
         editor.commands.setContent(p.content || '');
         lastContentRef.current = p.content || '';
         setRelatedPosts(p.related_posts.slice(0, 3));
@@ -139,44 +159,29 @@ export const NotesProvider = ({ children, editor }) => {
         setIsLoadingPost(false);
       }
     });
-  }, [autoSaveIfNeeded, editor, navigate]);
+  }, [autoSaveIfNeeded, editor, navigate, logMsg, t]);
 
   const handleNew = useCallback(() => {
     if (!editor) return;
-  
     autoSaveIfNeeded(async () => {
-      isSilentUpdate.current = true; // 자동 저장 비활성화
-  
+      isSilentUpdate.current = true;
       try {
-        // 1. 새 노트 생성 요청
         const res = await api.post("/posts", { title: t('untitled'), content: "" });
         const newPost = res.data;
         logMsg(t('new_note_created', { id: newPost.id }));
-  
-        // 2. 전체 포스트 목록에 새 노트 추가
         setPosts(prevPosts => [...prevPosts, newPost]);
-  
-        // 3. UI 상태를 새 노트 기준으로 즉시 업데이트
         setPostId(newPost.id.toString());
         setTitle(newPost.title);
         editor.commands.setContent(newPost.content || t('write_here'));
         setRelatedPosts([]);
-  
-        // 4. 마지막 저장 상태를 새 노트 기준으로 업데이트
         lastTitleRef.current = newPost.title;
         lastContentRef.current = newPost.content || '';
-  
-        // 5. URL 변경
         navigate(`/posts/${newPost.id}`);
-  
       } catch (e) {
         logMsg(t('new_note_creation_failed', { message: e.message }));
-      } finally {
-        // 6. 짧은 지연 후 자동 저장 다시 활성화
-
       }
     });
-  }, [autoSaveIfNeeded, editor, navigate]);
+  }, [autoSaveIfNeeded, editor, navigate, logMsg, t]);
 
   const handleDelete = useCallback(async (delPostId) => {
     if (!delPostId) return;
@@ -201,7 +206,6 @@ export const NotesProvider = ({ children, editor }) => {
   const restartAutoSave = useCallback((titleValue, contentValue) => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     if (titleValue === lastTitleRef.current && contentValue === lastContentRef.current) return;
-
     autoSaveTimer.current = setTimeout(async () => {
       if (postId && editor) {
         setIsSaving(true);
@@ -218,7 +222,7 @@ export const NotesProvider = ({ children, editor }) => {
         }
       }
     }, 500);
-  }, [postId, editor]);
+  }, [postId, editor, logMsg, t]);
 
   useEffect(() => {
     if (!editor) return;
@@ -234,7 +238,7 @@ export const NotesProvider = ({ children, editor }) => {
     if (isSilentUpdate.current) {
       const timer = setTimeout(() => {
         isSilentUpdate.current = false;
-      }, 0); // 다음 렌더링 사이클에 실행
+      }, 0);
       return () => clearTimeout(timer);
     }
   }, [postId]);
@@ -248,7 +252,8 @@ export const NotesProvider = ({ children, editor }) => {
   const value = {
     posts, setPosts, postId, setPostId, title, setTitle, onTitleChange,
     relatedPosts, setRelatedPosts, searchKeyword, setSearchKeyword,
-    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving, isLoadingList, listError, treeData
+    handleListLoad, loadNode, handleNew, handleDelete, isSilentUpdate, log, isSaving, isLoadingList, listError, treeData,
+    handleSearch, isSearchMode
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
