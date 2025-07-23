@@ -9,6 +9,7 @@ JOIN LATERAL (
     WHERE p2.user_id = p1.user_id
     AND p2.id != p1.id
     AND p2.embedding IS NOT NULL
+    AND p1.embedding <-> p2.embedding < $2
     ORDER BY p2.embedding <-> p1.embedding
     LIMIT 5
 ) p2 ON TRUE
