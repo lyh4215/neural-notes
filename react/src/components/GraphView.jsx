@@ -12,13 +12,14 @@ export default function GraphView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isLoggedIn } = useAuth();
-  const { focusedNodeId, setFocusedNodeId, setShowGraphView } = useUI(); 
+  const { focusedNodeId, setFocusedNodeId, setShowGraphView } = useUI();
   const { loadNode } = useNotes();
   const fgRef = useRef();
 
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuNodeId, setContextMenuNodeId] = useState(null);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
 
   const fetchGraphData = useCallback(async () => {
     if (!isLoggedIn) {
@@ -77,10 +78,12 @@ export default function GraphView() {
     setShowContextMenu(true);
     setContextMenuPos({ x: screenCoords.x, y: screenCoords.y + 40 });
     setContextMenuNodeId(node.id);
+    setSelectedNodeId(node.id);
   }, []);
 
   const handleBackgroundClick = useCallback(() => {
     setShowContextMenu(false);
+    setSelectedNodeId(null);
   }, []);
 
   if (loading) return <div style={{ color: '#fff' }}>{t('graph_loading')}</div>;
@@ -89,10 +92,10 @@ export default function GraphView() {
 
   return (
     <div style={{
-      flex: 1, 
-      display: 'flex', 
-      flexDirection: 'column', 
-      borderRadius: 8, 
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      borderRadius: 8,
       overflow: 'hidden',
       backgroundColor: '#1a1a1a'
     }}>
@@ -104,7 +107,14 @@ export default function GraphView() {
         nodeLabel="name"
         linkSource="source"
         linkTarget="target"
-        linkWidth={link => link.value * 5} // 유사도에 따라 링크 두께 조절
+        linkColor={link => {
+          const isSelected = selectedNodeId && (link.source.id === selectedNodeId || link.target.id === selectedNodeId);
+          return isSelected ? 'rgba(255, 215, 0, 0.8)' : '#555';
+        }}
+        linkWidth={link => {
+          const isSelected = selectedNodeId && (link.source.id === selectedNodeId || link.target.id === selectedNodeId);
+          return (isSelected ? 2 : 1) * link.value * 3;
+        }}
         onBackgroundPaint={(ctx) => {
           if (!fgRef.current) return;
 
@@ -137,6 +147,7 @@ export default function GraphView() {
         }}
         nodeAutoColorBy="name" // 노드 색상을 이름에 따라 자동 지정
         nodeCanvasObject={(node, ctx, globalScale) => {
+          const isSelected = selectedNodeId === node.id;
           const FIXED_NODE_WIDTH = 80;
           const FIXED_NODE_HEIGHT = 24;
           const FIXED_FONT_SIZE = 14;
@@ -170,13 +181,13 @@ export default function GraphView() {
           ctx.closePath();
 
           // Style and fill
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillStyle = isSelected ? 'rgba(255, 215, 0, 0.9)' : 'rgba(0, 0, 0, 0.7)';
           ctx.fill();
 
           // Text
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = isSelected ? '#111' : '#fff';
           ctx.fillText(label, node.x, node.y);
 
           node.__bckgDimensions = [nodeWidth, nodeHeight];
@@ -210,6 +221,7 @@ export default function GraphView() {
               loadNode({ postId: contextMenuNodeId });
               setShowGraphView(false);
               setShowContextMenu(false);
+              setSelectedNodeId(null);
             }}
             style={{
               background: 'none',
