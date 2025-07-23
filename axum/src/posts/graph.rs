@@ -10,6 +10,11 @@ use super::models::{GraphData, GraphLink, GraphNode, Post, PostGraphData};
 use super::utils::internal_error;
 use crate::auth::UserClaims;
 
+// Minimum similarity threshold for related posts (0.0 to 1.0)
+const MIN_SIMILARITY_THRESHOLD: f64 = 0.7;
+// Corresponding maximum distance (0.0 to 2.0)
+const MAX_DISTANCE_THRESHOLD: f64 = 2.0 * (1.0 - MIN_SIMILARITY_THRESHOLD);
+
 pub async fn get_related_post(post: &Post, db: &Pool<Postgres>) -> Vec<Post> {
     /* related post 가져오기기 */
     let Some(embedding) = &post.embedding else {
@@ -71,10 +76,15 @@ pub async fn get_graph_data(
     }
 
     // Calculate similarities and create links in a single query
-    let similar_pairs = sqlx::query_file_as!(SimilarPair, "sql/get_related_posts.sql", user.sub)
-        .fetch_all(&db)
-        .await
-        .map_err(internal_error)?;
+    let similar_pairs = sqlx::query_file_as!(
+        SimilarPair,
+        "sql/get_related_posts.sql",
+        user.sub,
+        MAX_DISTANCE_THRESHOLD
+    )
+    .fetch_all(&db)
+    .await
+    .map_err(internal_error)?;
 
     let links: Vec<GraphLink> = similar_pairs
         .into_iter()
