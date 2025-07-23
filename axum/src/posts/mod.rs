@@ -36,6 +36,7 @@ pub fn routes(cache_state: CacheState) -> Router<Pool<Postgres>> {
 fn post_routes_auth() -> Router<Pool<Postgres>> {
     Router::new()
         .route("/posts", axum::routing::get(list_posts).post(create_post))
+        .route("/posts/search", axum::routing::get(handlers::search_posts))
         .route("/posts/graph", axum::routing::get(get_graph_data))
 }
 

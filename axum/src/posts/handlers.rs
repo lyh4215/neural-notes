@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Json, Path, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
 };
 use core::panic;
@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use super::graph::get_related_post;
-use super::models::{CreatePost, EmbedResponse, Post, PostGraphData, PostResponse, UpdatePost};
+use super::models::*;
 use super::utils::internal_error;
 use crate::auth::UserClaims;
 
@@ -141,6 +141,66 @@ pub async fn update_post(
         related_posts,
     };
     Ok(Json(post_response))
+}
+
+pub async fn search_posts(
+    State(db): State<Pool<Postgres>>,
+    JwtClaims(user): JwtClaims<UserClaims>,
+    Query(search_query): Query<SearchQuery>,
+) -> Result<Json<Vec<Post>>, (StatusCode, String)> {
+    println!("Received search query in Axum: {}", search_query.q);
+    let client = reqwest::Client::new();
+    let fastapi_url =
+        std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
+    let api_key = std::env::var("EMBED_API_KEY").unwrap_or_default();
+
+    let embed_resp = client
+        .post(format!("{}/query-embedding", fastapi_url))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&serde_json::json!({ "query": search_query.q }))
+        .send()
+        .await
+        .map_err(|e| {
+            eprintln!("Failed to connect to embedding API: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to get query embedding".to_string(),
+            )
+        })?;
+
+    if !embed_resp.status().is_success() {
+        let error_body = embed_resp
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        eprintln!("Embedding API returned an error: {}", error_body);
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to get query embedding".to_string(),
+        ));
+    }
+
+    let embed_data: EmbedResponse = embed_resp.json().await.map_err(|e| {
+        eprintln!("Failed to parse embedding API response: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Invalid response from embedding API".to_string(),
+        )
+    })?;
+
+    let query_vector = Vector::from(embed_data.embedding);
+
+    let posts = sqlx::query_as::<_, Post>(include_str!("../../sql/search_posts.sql"))
+        .bind(query_vector)
+        .bind(user.sub)
+        .fetch_all(&db)
+        .await
+        .map_err(|e| {
+            eprintln!("Database search failed: {}", e);
+            internal_error(e)
+        })?;
+
+    Ok(Json(posts))
 }
 
 pub async fn __update_post_from_cache(

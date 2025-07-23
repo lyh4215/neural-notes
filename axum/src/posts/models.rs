@@ -63,6 +63,11 @@ pub struct GraphData {
     pub links: Vec<GraphLink>,
 }
 
+//for query embedding
+#[derive(Deserialize)]
+pub struct SearchQuery {
+    pub q: String,
+}
 #[derive(Debug, Clone, Deserialize)]
 pub struct EmbedResponse {
     pub embedding: Vec<f32>,

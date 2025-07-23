@@ -8,7 +8,7 @@
   "signup_success": "🎉 회원가입 성공! 이제 로그인하세요.",
   "signup_failed": "회원가입 실패:",
   "login_required": "로그인이 필요합니다.",
-  "new_note": "🆕 새 노트",
+  "new_note": "새 노트",
   "search_placeholder": "검색어 입력...",
   "neural_notes": "🧠 Neural Notes",
   "no_notes_to_display": "표시할 노트가 없습니다.",
@@ -35,5 +35,7 @@
   "similar_notes_graph": "유사 노트 그래프",
   "write_here": "✍️ 여기서 글을 작성하세요",
   "cancel": "취소",
-  "open": "열기"
+  "open": "열기",
+  "search": "AI 검색",
+  "show_all_notes": "AI 검색 끄기"
 }

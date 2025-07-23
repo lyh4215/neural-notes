@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../contexts/NotesContext';
@@ -9,10 +8,19 @@ import { useTranslation } from 'react-i18next';
 export default function Sidebar() {
   const { t, i18n } = useTranslation();
   const { isLoggedIn, loggedInUsername, handleLogout } = useAuth();
-  const { searchKeyword, setSearchKeyword, treeData, loadNode, handleDelete, handleNew, isSaving, isLoadingList, listError, log } = useNotes();
+  const { 
+    searchKeyword, setSearchKeyword, treeData, loadNode, handleDelete, handleNew, 
+    isLoadingList, listError, handleSearch, isSearchMode, handleListLoad 
+  } = useNotes();
   const { setIsLoginModalOpen, setIsSignupModalOpen, isSidebarHidden, setIsSidebarHidden, showDeleteFor, setShowDeleteFor, dividerPosition } = useUI();
 
   if (isSidebarHidden) return null;
+
+  const onSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   return (
     <div
@@ -40,14 +48,24 @@ export default function Sidebar() {
           </>
         )}
       </div>
-      <input type="text" placeholder={t('search_placeholder')} value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)}
-        style={{
-          marginBottom: 10, width: '100%', padding: 8, borderRadius: 4,
-          border: '1px solid #444', background: '#2e2e2e', color: '#fff'
-        }} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <input 
+          type="text" 
+          placeholder={t('search_placeholder')} 
+          value={searchKeyword} 
+          onChange={e => setSearchKeyword(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          style={{
+            flex: 1, padding: 8, borderRadius: 4,
+            border: '1px solid #444', background: '#2e2e2e', color: '#fff'
+          }} 
+        />
+        <button onClick={handleSearch} disabled={!isLoggedIn || isLoadingList}>{t('search')}</button>
+      </div>
       <h2 style={{ color: '#fff', margin: 0, marginBottom: 10 }}>{t('neural_notes')}</h2>
       <div style={{ marginBottom: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button onClick={handleNew} disabled={!isLoggedIn}>{t('new_note')}</button>
+        {isSearchMode && <button onClick={handleListLoad}>{t('show_all_notes')}</button>}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 10, background: '#1e1e1e' }}>
         {isLoadingList ? (

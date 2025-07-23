@@ -29,9 +29,26 @@ app = FastAPI(title="Local LLM Embedding API")
 model = None
 model_lock = Lock()  # 멀티스레드 환경에서 race condition 방지용
 
+def get_model():
+    global model
+    if model is None:
+        with model_lock:
+            if model is None:
+                try:
+                    print("🔵 Loading SentenceTransformer model...")
+                    model = SentenceTransformer('distiluse-base-multilingual-cased-v2')
+                    print("🟢 Model loaded successfully.")
+                except Exception as e:
+                    print(f"Error loading model: {e}")
+                    raise HTTPException(status_code=500, detail="Model loading failed")
+    return model
+
 # 요청 모델
 class TextRequest(BaseModel):
     text: str
+
+class QueryRequest(BaseModel):
+    query: str
 
 # 응답 모델
 class EmbeddingResponse(BaseModel):
@@ -39,24 +56,19 @@ class EmbeddingResponse(BaseModel):
 
 # POST /embed 엔드포인트
 @app.post("/embed", response_model=EmbeddingResponse, dependencies=[Depends(get_api_key)])
-async def embed_text(request: TextRequest):
-    global model
-
-    # 모델이 아직 로드되지 않았다면 로드 (1회만)
-    if model is None:
-        with model_lock:
-            if model is None:  # 다른 요청에서 이미 로드했을 수도 있으므로 재확인
-                try:
-                    print("🔵 Loading SentenceTransformer model...")
-                    model = SentenceTransformer('all-MiniLM-L6-v2')
-                    print("🟢 Model loaded successfully.")
-                except Exception as e:
-                    print(f"Error loading model: {e}")
-                    raise HTTPException(status_code=500, detail="Model loading failed")
-
-    # 임베딩 생성
+async def embed_text(request: TextRequest, model: SentenceTransformer = Depends(get_model)):
     try:
         embedding = model.encode(request.text).tolist()
+        return EmbeddingResponse(embedding=embedding)
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/query-embedding", response_model=EmbeddingResponse, dependencies=[Depends(get_api_key)])
+async def query_embedding(request: QueryRequest, model: SentenceTransformer = Depends(get_model)):
+    print(f"Received search query in FastAPI: {request.query}")
+    try:
+        embedding = model.encode(request.query).tolist()
         return EmbeddingResponse(embedding=embedding)
     except Exception as e:
         print(f"Error generating embedding: {e}")
