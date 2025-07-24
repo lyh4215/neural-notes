@@ -27,7 +27,7 @@ where
     T: serde::Serialize,
 {
     let client = Client::new();
-    let max_retries = 3;
+    let max_retries = 2;
     let api_key = std::env::var("EMBED_API_KEY").unwrap_or_default();
     let mut current_retry = 0;
 
@@ -78,31 +78,48 @@ where
 /// Checks the health of the embedding API.
 pub async fn check_embedding_api_health(health_check_url: &str) -> Result<(), EmbeddingApiError> {
     let client = Client::new();
-    info!("Checking embedding API health at: {}", health_check_url);
+    let max_retries = 6;
     let api_key = std::env::var("EMBED_API_KEY").unwrap_or_default();
-    match client
-        .get(health_check_url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .send()
-        .await
-    {
-        Ok(response) => {
-            if response.status().is_success() {
-                info!("Embedding API is healthy.");
-                Ok(())
-            } else {
+    let mut current_retry = 0;
+
+    while current_retry < max_retries {
+        info!(
+            "Attempting health check (retry {}/{}) at: {}",
+            current_retry + 1,
+            max_retries,
+            health_check_url
+        );
+        match client
+            .get(health_check_url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send()
+            .await
+        {
+            Ok(response) => {
+                if response.status().is_success() {
+                    info!("Embedding API is healthy.");
+                    return Ok(());
+                } else {
+                    warn!(
+                        "Embedding API health check failed with status: {}. Retrying...",
+                        response.status()
+                    );
+                    current_retry += 1;
+                    sleep(Duration::from_secs(2u64.pow(current_retry))).await; // Exponential backoff
+                }
+            }
+            Err(e) => {
                 error!(
-                    "Embedding API health check failed with status: {}",
-                    response.status()
+                    "Failed to reach embedding API for health check: {}. Retrying...",
+                    e
                 );
-                Err(EmbeddingApiError::Unhealthy)
+                current_retry += 1;
+                sleep(Duration::from_secs(2u64.pow(current_retry))).await; // Exponential backoff
             }
         }
-        Err(e) => {
-            error!("Failed to reach embedding API for health check: {}", e);
-            Err(EmbeddingApiError::HttpRequest(e))
-        }
     }
+    error!("Max retries exceeded for health check.");
+    Err(EmbeddingApiError::Unhealthy)
 }
 
 pub fn internal_error<E>(err: E) -> (StatusCode, String)
