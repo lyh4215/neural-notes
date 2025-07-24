@@ -2,17 +2,17 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use core::panic;
 use jwt_authorizer::JwtClaims;
 use pgvector::Vector;
 use serde::{Deserialize, Serialize};
 use sqlx::{Postgres, pool::Pool};
-use std::time::Duration;
-use tokio::time::sleep;
 
 use super::graph::get_related_post;
 use super::models::*;
-use super::utils::internal_error;
+use super::models::{EmbeddingRequest, EmbeddingResponse, QueryRequest};
+use super::utils::{
+    EmbeddingApiError, call_embedding_api_with_retry, check_embedding_api_health, internal_error,
+};
 use crate::auth::UserClaims;
 
 pub async fn create_post(
@@ -149,42 +149,35 @@ pub async fn search_posts(
     Query(search_query): Query<SearchQuery>,
 ) -> Result<Json<Vec<Post>>, (StatusCode, String)> {
     println!("Received search query in Axum: {}", search_query.q);
-    let client = reqwest::Client::new();
-    let fastapi_url =
-        std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
-    let api_key = std::env::var("EMBED_API_KEY").unwrap_or_default();
 
-    let embed_resp = client
-        .post(format!("{}/query-embedding", fastapi_url))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&serde_json::json!({ "query": search_query.q }))
-        .send()
+    let embed_api_url =
+        std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
+    let health_check_url = format!("{}/health", embed_api_url);
+    let query_embedding_url = format!("{}/query-embedding", embed_api_url);
+
+    // 헬스체크 수행
+    check_embedding_api_health(&health_check_url)
         .await
         .map_err(|e| {
-            eprintln!("Failed to connect to embedding API: {}", e);
+            eprintln!("Embedding API health check failed: {}", e);
             (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to get query embedding".to_string(),
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Embedding service unavailable".to_string(),
             )
         })?;
 
-    if !embed_resp.status().is_success() {
-        let error_body = embed_resp
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-        eprintln!("Embedding API returned an error: {}", error_body);
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to get query embedding".to_string(),
-        ));
-    }
-
-    let embed_data: EmbedResponse = embed_resp.json().await.map_err(|e| {
-        eprintln!("Failed to parse embedding API response: {}", e);
+    let embed_data = call_embedding_api_with_retry(
+        &query_embedding_url,
+        QueryRequest {
+            query: search_query.q.clone(),
+        },
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("Failed to get query embedding from API: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            "Invalid response from embedding API".to_string(),
+            "Failed to get query embedding".to_string(),
         )
     })?;
 
@@ -209,95 +202,36 @@ pub async fn __update_post_from_cache(
     Json(payload): Json<UpdatePost>,
 ) {
     let mut tx = db.begin().await.map_err(internal_error).unwrap();
-    let client = reqwest::Client::new();
+
     let embed_api_url =
         std::env::var("EMBED_API_URL").unwrap_or_else(|_| "http://embed_api:8001".to_string());
-    let max_retries = 5;
-    let retry_delay = Duration::from_secs(10); // ⏱️ 재시도 간격: 10초
+    let health_check_url = format!("{}/health", embed_api_url);
+    let embed_url = format!("{}/embed", embed_api_url);
 
-    // Step 1: Wait for /health to return 200 OK
-    let mut health_ok = false;
-    for attempt in 1..=max_retries {
-        match client.get(format!("{}/health", embed_api_url)).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                health_ok = true;
-                break;
-            }
-            Ok(resp) => {
-                eprintln!(
-                    "🔁 /health responded with non-200 ({}), attempt {}/{}",
-                    resp.status(),
-                    attempt,
-                    max_retries
-                );
-            }
-            Err(e) => {
-                eprintln!("⚠️ Failed to reach /health (attempt {}): {}", attempt, e);
-            }
-        }
-        sleep(retry_delay).await;
-    }
+    let mut vector: Option<Vector> = None;
+    // 헬스체크 수행
+    if let Err(e) = check_embedding_api_health(&health_check_url).await {
+        eprintln!("Embedding API health check failed for update: {}", e);
+    } else {
+        vector = if let Some(content) = payload.content.clone() {
+            let embedding_result =
+                call_embedding_api_with_retry(&embed_url, EmbeddingRequest { text: content }).await;
 
-    if !health_ok {
-        panic!(
-            "❌ /health did not return 200 OK after {} attempts. Aborting update.",
-            max_retries
-        );
-    }
-    // Step 2: Send the /embed request
-    let embed_resp = {
-        let mut attempt = 0;
-        let mut last_err = None;
-        loop {
-            attempt += 1;
-            match client
-                .post(format!("{}/embed", embed_api_url))
-                .header(
-                    "Authorization",
-                    format!(
-                        "Bearer {}",
-                        std::env::var("EMBED_API_KEY").unwrap_or_default()
-                    ),
-                )
-                .json(&serde_json::json!({ "text": payload.content }))
-                .send()
-                .await
-            {
-                Ok(resp) => break Ok(resp),
+            match embedding_result {
+                Ok(data) => {
+                    // ➋ pgvector Vector로 변환
+                    Some(Vector::from(data.embedding))
+                }
                 Err(e) => {
-                    last_err = Some(e.to_string());
-                    if attempt >= max_retries {
-                        break Err((
-                            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            format!(
-                                "Failed after {} attempts: {}, URL: {}",
-                                attempt,
-                                last_err.clone().unwrap_or_default(),
-                                embed_api_url
-                            ),
-                        ));
-                    }
-                    eprintln!(
-                        "⚠️ Request failed (attempt {}): {}. Retrying in {}s...",
-                        attempt,
-                        e,
-                        retry_delay.as_secs()
-                    );
-                    sleep(retry_delay).await;
+                    eprintln!("Failed to get embedding for update, setting to NULL: {}", e);
+                    None // Set embedding to NULL
                 }
             }
-        }
+        } else {
+            eprintln!("Payload content is None, setting embedding to NULL.");
+            None
+        };
     }
-    .unwrap();
-
-    let embed_resp: EmbedResponse = embed_resp
-        .json()
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-        .unwrap();
-
-    // ➋ pgvector Vector로 변환
-    let vector = Vector::from(embed_resp.embedding);
 
     sqlx::query(
         r#"
