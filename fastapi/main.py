@@ -30,6 +30,7 @@ model = None
 model_lock = Lock()  # 멀티스레드 환경에서 race condition 방지용
 
 def get_model():
+    print("🔵 Checking if model is loaded...")
     global model
     if model is None:
         with model_lock:

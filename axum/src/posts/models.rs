@@ -68,7 +68,21 @@ pub struct GraphData {
 pub struct SearchQuery {
     pub q: String,
 }
-#[derive(Debug, Clone, Deserialize)]
-pub struct EmbedResponse {
+
+// Define a struct for the embedding request payload
+#[derive(Debug, Serialize)]
+pub struct EmbeddingRequest {
+    pub text: String,
+}
+
+// Define a struct for the embedding request payload
+#[derive(Debug, Serialize)]
+pub struct QueryRequest {
+    pub query: String,
+}
+
+// Define a struct for the embedding response payload
+#[derive(Debug, Deserialize)]
+pub struct EmbeddingResponse {
     pub embedding: Vec<f32>,
 }
