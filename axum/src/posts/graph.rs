@@ -11,7 +11,7 @@ use super::utils::internal_error;
 use crate::auth::UserClaims;
 
 // Minimum similarity threshold for related posts (0.0 to 1.0)
-const MIN_SIMILARITY_THRESHOLD: f64 = 0.7;
+const MIN_SIMILARITY_THRESHOLD: f64 = 0.5;
 // Corresponding maximum distance (0.0 to 2.0)
 const MAX_DISTANCE_THRESHOLD: f64 = 2.0 * (1.0 - MIN_SIMILARITY_THRESHOLD);
 
