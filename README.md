@@ -12,6 +12,26 @@ This is monorepo of `neural-notes` app.
 ## Structure
 ![pipeline](.github/docs/pipeline.jpeg)
 
+### Write-back Cache as an Architectural Trade-off
+[axum-redis-cache](https://github.com/lyh4215/axum-redis-cache)
+A write-back cache layer was introduced in front of the database using Redis and evaluated within this product, a personal document web application.
+
+In practice, this approach resulted in measurable performance improvements:
+- Significantly reduced read and write latency
+- Removed database contention from the synchronous request path
+- Enabled fast responses without additional `latency-hiding` techniques
+
+### Limitations
+
+The limitations of this approach are as follows:
+
+- Application state becomes difficult to reason about if the Redis cache layer is unavailable or inconsistent
+- Strong durability guarantees cannot be provided without additional recovery mechanisms
+- Therefore, this model is unsuitable for domains where data must be durably preserved (e.g. document applications)
+
+In summary, a write-back cache is effective for high-throughput, latency-sensitive workloads, but requires careful domain selection and should be applied only with careful consideration of the domain.
+
+
 ## Quick Start for dev
 1. install just &  docker
 
